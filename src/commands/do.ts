@@ -1,14 +1,16 @@
 import { Command } from "commander";
 import * as fs from "fs";
 import matter from "gray-matter";
-import { findHabitFile, applyCompletion, CONFIG } from "../lib.js";
+import { findHabitFile, applyCompletion, CONFIG, isoLocal, resolveDoDate } from "../lib.js";
 
 export function doCommand(program: Command) {
   program
-    .command("do <habit> [valueOrDate] [date]")
-    .description("Mark a habit as done for today or a specific date (YYYY-MM-DD)")
+    .command("do <habit> [rest...]")
+    .description(
+      "Mark a habit as done for today or a specific date (YYYY-MM-DD or English phrases like yesterday, last Tuesday)",
+    )
     .option("-p, --partial", "Mark as partially completed (boolean habits only)")
-    .action((habit: string, valueOrDate?: string, date?: string, opts?: { partial?: boolean }) => {
+    .action((habit: string, rest: string[] = [], opts?: { partial?: boolean }) => {
       const filePath = findHabitFile(habit);
       if (!filePath) {
         console.error(`Habit not found: "${habit}"`);
@@ -20,25 +22,41 @@ export function doCommand(program: Command) {
       const isNegative = parsed.data.type === "negative";
       const isNumerical = !isNegative && parsed.data.type === "numerical";
 
+      const ref = new Date();
       let marker: string;
       let targetDate: string;
 
       if (isNumerical) {
-        if (!valueOrDate || !/^\d+$/.test(valueOrDate)) {
+        const valueToken = rest[0];
+        if (!valueToken || !/^\d+$/.test(valueToken)) {
           console.error(`Numerical habit requires a value: habitxt do ${habit} <value> [date]`);
           process.exit(1);
         }
-        marker = valueOrDate;
-        targetDate = date ?? new Date().toISOString().slice(0, 10);
+        marker = valueToken;
+        const datePhrase = rest.slice(1).join(" ").trim();
+        if (datePhrase) {
+          const resolved = resolveDoDate(datePhrase, ref);
+          if (!resolved) {
+            console.error(`Invalid date: "${datePhrase}". Use YYYY-MM-DD or a phrase like yesterday, last Tuesday.`);
+            process.exit(1);
+          }
+          targetDate = resolved;
+        } else {
+          targetDate = isoLocal(ref);
+        }
       } else {
-        // valueOrDate is actually the date for boolean habits
-        targetDate = valueOrDate ?? new Date().toISOString().slice(0, 10);
+        const datePhrase = rest.join(" ").trim();
+        if (datePhrase) {
+          const resolved = resolveDoDate(datePhrase, ref);
+          if (!resolved) {
+            console.error(`Invalid date: "${datePhrase}". Use YYYY-MM-DD or a phrase like yesterday, last Tuesday.`);
+            process.exit(1);
+          }
+          targetDate = resolved;
+        } else {
+          targetDate = isoLocal(ref);
+        }
         marker = opts?.partial ? CONFIG.symbols.partial : CONFIG.symbols.done;
-      }
-
-      if (!/^\d{4}-\d{2}-\d{2}$/.test(targetDate)) {
-        console.error(`Invalid date format: "${targetDate}". Use YYYY-MM-DD.`);
-        process.exit(1);
       }
 
       const wasArchived = parsed.data.status === "archived";

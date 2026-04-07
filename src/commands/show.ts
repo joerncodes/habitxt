@@ -2,6 +2,7 @@ import { Command } from "commander";
 import * as fs from "fs";
 import matter from "gray-matter";
 import chalk from "chalk";
+import asciichart from "asciichart";
 import {
   findHabitFile,
   isoLocal,
@@ -13,6 +14,7 @@ import {
   habitLabel,
   filterCompletionsForStreak,
   markerLevel,
+  numericValuesForDays,
   Thresholds,
   CONFIG,
 } from "../lib.js";
@@ -20,7 +22,7 @@ import {
 export function showCommand(program: Command) {
   program
     .command("show <habit>")
-    .description("Show habit details, last 10 days, and streaks")
+    .description("Show habit details, last 10 days, streaks, and a value chart for numerical habits")
     .action((habit: string) => {
       const filePath = findHabitFile(habit);
       if (!filePath) {
@@ -85,6 +87,17 @@ export function showCommand(program: Command) {
       console.log(header);
       console.log(row);
       console.log();
+      if (isNumerical) {
+        const values = numericValuesForDays(completions, days);
+        console.log(chalk.bold("Value (last 10 days)"));
+        console.log(asciichart.plot(values, { height: 6 }));
+        console.log(
+          chalk.dim(
+            "day of month →  " + days.map((d) => d.getDate()).join(" "),
+          ),
+        );
+        console.log();
+      }
       if (isNegative) {
         console.log(chalk.bold("Streaks"));
         const line =

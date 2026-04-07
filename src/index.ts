@@ -11,7 +11,7 @@ import { editCommand } from "./commands/edit.js";
 import { todayCommand } from "./commands/today.js";
 
 const program = new Command();
-program.name("habitxt").description("Text-based habit tracker").version("1.0.0");
+program.name("habitxt").description("Text-based habit tracker").version("1.1.1");
 
 doCommand(program);
 showCommand(program);

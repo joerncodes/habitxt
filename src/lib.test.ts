@@ -9,7 +9,36 @@ import {
   habitLabel,
   filterCompletionsForStreak,
   markerLevel,
+  numericValuesForDays,
+  resolveDoDate,
 } from "./lib.js";
+
+// ---------------------------------------------------------------------------
+// resolveDoDate
+// ---------------------------------------------------------------------------
+
+describe("resolveDoDate", () => {
+  /** Tue 2026-04-07 12:00 local — chrono weekday phrases are relative to this. */
+  const ref = new Date(2026, 3, 7, 12, 0, 0);
+
+  it("passes through ISO dates", () => {
+    expect(resolveDoDate("2026-04-05", ref)).toBe("2026-04-05");
+  });
+
+  it("parses yesterday in local calendar", () => {
+    expect(resolveDoDate("yesterday", ref)).toBe("2026-04-06");
+  });
+
+  it("parses multi-word weekday phrases", () => {
+    expect(resolveDoDate("last Tuesday", ref)).toBe("2026-03-31");
+  });
+
+  it("returns null for empty or unparseable input", () => {
+    expect(resolveDoDate("", ref)).toBeNull();
+    expect(resolveDoDate("   ", ref)).toBeNull();
+    expect(resolveDoDate("not a date whatsoever", ref)).toBeNull();
+  });
+});
 
 // ---------------------------------------------------------------------------
 // applyCompletion
@@ -267,6 +296,24 @@ describe("filterCompletionsForStreak", () => {
 
   it("returns empty map when all entries are below threshold", () => {
     expect(filterCompletionsForStreak(map, 100).size).toBe(0);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// numericValuesForDays
+// ---------------------------------------------------------------------------
+
+describe("numericValuesForDays", () => {
+  it("maps numeric markers and 0 for missing", () => {
+    const completions = parseCompletions("\n- [10] 2026-04-05\n- [20] 2026-04-07\n");
+    const days = [new Date(2026, 3, 5), new Date(2026, 3, 6), new Date(2026, 3, 7)];
+    expect(numericValuesForDays(completions, days)).toEqual([10, 0, 20]);
+  });
+
+  it("treats non-numeric markers as 0", () => {
+    const completions = parseCompletions("\n- [x] 2026-04-05\n- [/] 2026-04-06\n");
+    const days = [new Date(2026, 3, 5), new Date(2026, 3, 6)];
+    expect(numericValuesForDays(completions, days)).toEqual([0, 0]);
   });
 });
 

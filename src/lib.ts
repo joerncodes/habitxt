@@ -1,6 +1,7 @@
 import * as fs from "fs";
 import * as path from "path";
 import matter from "gray-matter";
+import { parseDate } from "chrono-node";
 import stringWidth from "string-width";
 import { HABITS_DIR, CONFIG } from "./config.js";
 export { HABITS_DIR, CONFIG };
@@ -12,6 +13,18 @@ export const COMPLETION_RE = /^- \[(\S+)\] (\d{4}-\d{2}-\d{2})$/;
 
 export const isoLocal = (d: Date) =>
   `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+
+const ISO_DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
+
+/** Resolve an ISO date (YYYY-MM-DD) or English casual phrase to a calendar date in local time. */
+export function resolveDoDate(phrase: string, ref: Date = new Date()): string | null {
+  const trimmed = phrase.trim();
+  if (!trimmed) return null;
+  if (ISO_DATE_RE.test(trimmed)) return trimmed;
+  const d = parseDate(trimmed, ref);
+  if (!d || Number.isNaN(d.getTime())) return null;
+  return isoLocal(d);
+}
 
 export { stringWidth };
 
@@ -176,6 +189,14 @@ export function filterCompletionsForStreak(
 }
 
 /** Returns the display level of a marker given numerical thresholds. Pure — no chalk. */
+/** Per-day numeric markers for charting; missing or non-numeric markers become 0. */
+export function numericValuesForDays(completions: Map<string, string>, days: Date[]): number[] {
+  return days.map((d) => {
+    const m = completions.get(isoLocal(d))?.trim() ?? "";
+    return /^\d+$/.test(m) ? parseInt(m, 10) : 0;
+  });
+}
+
 export function markerLevel(
   marker: string | undefined,
   thresholds: Thresholds,
