@@ -2,7 +2,8 @@ import { Command } from "commander";
 import * as fs from "fs";
 import * as path from "path";
 import matter from "gray-matter";
-import { input, search } from "@inquirer/prompts";
+import chalk from "chalk";
+import { input, search, select } from "@inquirer/prompts";
 import { HABITS_DIR } from "../lib.js";
 
 function loadExistingCategories(habitsDir: string): string[] {
@@ -30,6 +31,25 @@ export function createCommand(program: Command) {
 
       const icon = await input({ message: "Icon (emoji, or leave blank):" });
       const description = await input({ message: "Description:" });
+
+      const habitType = await select<"boolean" | "numerical" | "negative">({
+        message: "Type:",
+        choices: [
+          {
+            name: `${chalk.bold("boolean")}  mark days you did the habit; streaks count consecutive completed days`,
+            value: "boolean",
+          },
+          {
+            name: `${chalk.bold("numerical")}  log a number each day (e.g. steps); colors use partial/full thresholds`,
+            value: "numerical",
+          },
+          {
+            name: `${chalk.bold("negative")}  habit to avoid; log slips, streak is consecutive clean days since the last slip`,
+            value: "negative",
+          },
+        ],
+        default: "boolean",
+      });
 
       const existingCategories = loadExistingCategories(HABITS_DIR);
       const category = await search<string>({
@@ -60,6 +80,26 @@ export function createCommand(program: Command) {
       if (description) data.description = description;
       if (category) data.category = category;
       if (aliases.length > 0) data.aliases = aliases;
+
+      if (habitType === "negative") {
+        data.type = "negative";
+      } else if (habitType === "numerical") {
+        const partialStr = await input({ message: "Partial threshold (number):" });
+        const fullStr = await input({ message: "Full threshold (number):" });
+        const partial = Number(partialStr);
+        const full = Number(fullStr);
+        if (!Number.isFinite(partial) || !Number.isInteger(partial)) {
+          console.error("Partial threshold must be an integer.");
+          process.exit(1);
+        }
+        if (!Number.isFinite(full) || !Number.isInteger(full)) {
+          console.error("Full threshold must be an integer.");
+          process.exit(1);
+        }
+        data.type = "numerical";
+        data.partial = partial;
+        data.full = full;
+      }
 
       fs.mkdirSync(HABITS_DIR, { recursive: true });
       fs.writeFileSync(filePath, matter.stringify("", data));

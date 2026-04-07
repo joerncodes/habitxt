@@ -2,7 +2,20 @@ import { Command } from "commander";
 import * as fs from "fs";
 import matter from "gray-matter";
 import chalk from "chalk";
-import { findHabitFile, isoLocal, parseCompletions, calcCurrentStreak, calcLongestStreak, center, habitLabel, filterCompletionsForStreak, markerLevel, Thresholds, CONFIG } from "../lib.js";
+import {
+  findHabitFile,
+  isoLocal,
+  parseCompletions,
+  calcCurrentStreak,
+  calcLongestStreak,
+  calcNegativeStreak,
+  center,
+  habitLabel,
+  filterCompletionsForStreak,
+  markerLevel,
+  Thresholds,
+  CONFIG,
+} from "../lib.js";
 
 export function showCommand(program: Command) {
   program
@@ -19,9 +32,11 @@ export function showCommand(program: Command) {
       const parsed = matter(raw);
       const completions = parseCompletions(parsed.content);
 
+      const isNegative = parsed.data.type === "negative";
+      const isNumerical = !isNegative && parsed.data.type === "numerical";
       const thresholds: Thresholds = {
-        partial: parsed.data.type === "numerical" ? (parsed.data.partial as number ?? null) : null,
-        full:    parsed.data.type === "numerical" ? (parsed.data.full    as number ?? null) : null,
+        partial: isNumerical ? (parsed.data.partial as number ?? null) : null,
+        full:    isNumerical ? (parsed.data.full    as number ?? null) : null,
       };
 
       // Last 10 days ending today
@@ -40,7 +55,8 @@ export function showCommand(program: Command) {
       const MARKERS = days.map((d) => completions.get(isoLocal(d)) ?? " ");
 
       const streakCompletions = filterCompletionsForStreak(completions, thresholds.partial);
-      const currentStreak = calcCurrentStreak(streakCompletions, today);
+      const negInfo = isNegative ? calcNegativeStreak(completions, today) : null;
+      const currentStreak = isNegative ? negInfo!.days : calcCurrentStreak(streakCompletions, today);
       const longestStreak = calcLongestStreak(streakCompletions);
 
       // Display
@@ -48,7 +64,12 @@ export function showCommand(program: Command) {
       const header = MONTH_LABELS.map((l) => l.padEnd(COL)).join("");
       const row = MARKERS.map((m) => {
         const cell = center(m, COL);
-        switch (markerLevel(m.trim() || undefined, thresholds, CONFIG.symbols)) {
+        const trimmed = m.trim();
+        if (isNegative) {
+          if (!trimmed) return chalk.bgGreen.black(cell);
+          return chalk.bgRed.black(cell);
+        }
+        switch (markerLevel(trimmed || undefined, thresholds, CONFIG.symbols)) {
           case "full":    return chalk.bgGreen.black(cell);
           case "partial": return thresholds.partial !== null
             ? chalk.bgYellow.black(cell)
@@ -64,9 +85,18 @@ export function showCommand(program: Command) {
       console.log(header);
       console.log(row);
       console.log();
-      console.log(chalk.bold("Streaks"));
-      console.log(`${chalk.bold("Current")}  ${currentStreak} day${currentStreak !== 1 ? "s" : ""}`);
-      console.log(`${chalk.bold("Longest")}  ${longestStreak} day${longestStreak !== 1 ? "s" : ""}`);
+      if (isNegative) {
+        console.log(chalk.bold("Streaks"));
+        const line =
+          negInfo!.lastSlip === null
+            ? "Never slipped"
+            : `${currentStreak} day${currentStreak !== 1 ? "s" : ""} clean`;
+        console.log(`${chalk.bold("Current")}  ${line}`);
+      } else {
+        console.log(chalk.bold("Streaks"));
+        console.log(`${chalk.bold("Current")}  ${currentStreak} day${currentStreak !== 1 ? "s" : ""}`);
+        console.log(`${chalk.bold("Longest")}  ${longestStreak} day${longestStreak !== 1 ? "s" : ""}`);
+      }
       console.log();
     });
 }

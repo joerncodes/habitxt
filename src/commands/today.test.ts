@@ -57,6 +57,8 @@ describe("loadTodayHabits", () => {
     expect(entries).toHaveLength(1);
     expect(entries[0].name).toBe("Meditate");
     expect(entries[0].isNumerical).toBe(false);
+    expect(entries[0].isNegative).toBe(false);
+    expect(entries[0].negativeLastSlip).toBeUndefined();
     expect(entries[0].todayMarker).toBeUndefined();
     expect(entries[0].currentStreak).toBe(0);
     expect(entries[0].category).toBeNull();
@@ -147,5 +149,28 @@ describe("loadTodayHabits", () => {
     writeHabit(dir, "C.md", { name: "C", category: "Health" });
     const entries = loadTodayHabits(dir, "2026-04-07");
     expect(entries.map((e) => e.name)).toEqual(["A", "B", "C"]);
+  });
+
+  it("reads negative habit and clean streak", () => {
+    writeHabit(
+      dir,
+      "NoAlcohol.md",
+      { name: "No Alcohol", type: "negative" },
+      ["x 2026-04-01"],
+    );
+    const entries = loadTodayHabits(dir, "2026-04-07");
+    expect(entries).toHaveLength(1);
+    expect(entries[0].isNegative).toBe(true);
+    expect(entries[0].isNumerical).toBe(false);
+    expect(entries[0].negativeLastSlip).toBe("2026-04-01");
+    expect(entries[0].currentStreak).toBe(6);
+  });
+
+  it("negative habit with no slips reports never slipped", () => {
+    writeHabit(dir, "NoJunk.md", { name: "No Junk", type: "negative" });
+    const entries = loadTodayHabits(dir, "2026-04-07");
+    expect(entries[0].isNegative).toBe(true);
+    expect(entries[0].negativeLastSlip).toBeNull();
+    expect(entries[0].currentStreak).toBe(0);
   });
 });

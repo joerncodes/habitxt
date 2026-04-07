@@ -11,6 +11,7 @@ const habit = (name: string, category: string | null = null): HabitRow => ({
   category,
   completions: new Map(),
   thresholds: { partial: null, full: null },
+  isNegative: false,
 });
 
 // ---------------------------------------------------------------------------
@@ -222,5 +223,14 @@ describe("buildHabitCells", () => {
     const cells = buildHabitCells(num, 2026, 3, 30, todayStr, { partial: 50, full: 100 });
     expect(strip(cells[0])).toBe("99+");
     expect(strip(cells[0])).toHaveLength(MONTH_COL);
+  });
+
+  it("negative habit: clean day is green, slip is red", () => {
+    const map = new Map([["2026-04-01", "x"]]);
+    const cells = buildHabitCells(map, 2026, 3, 30, todayStr, noThresholds, undefined, true);
+    expect(cells[0]).not.toBe(" x ");
+    expect(strip(cells[0])).toContain("x");
+    const empty = buildHabitCells(new Map(), 2026, 3, 30, todayStr, noThresholds, undefined, true);
+    expect(empty[1]).not.toBe(" \u0020 ");
   });
 });

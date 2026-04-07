@@ -5,6 +5,7 @@ import {
   parseCompletions,
   calcCurrentStreak,
   calcLongestStreak,
+  calcNegativeStreak,
   habitLabel,
   filterCompletionsForStreak,
   markerLevel,
@@ -205,6 +206,36 @@ describe("calcCurrentStreak", () => {
   it("counts partial completions as part of the streak", () => {
     const map = new Map([["2026-04-06", "/"], ["2026-04-07", "/"]]);
     expect(calcCurrentStreak(map, today)).toBe(2);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// calcNegativeStreak
+// ---------------------------------------------------------------------------
+
+describe("calcNegativeStreak", () => {
+  const today = new Date("2026-04-07T12:00:00");
+
+  it("returns never slipped when there are no entries", () => {
+    expect(calcNegativeStreak(new Map(), today)).toEqual({ days: 0, lastSlip: null });
+  });
+
+  it("uses the most recent slip on or before today", () => {
+    const map = new Map([
+      ["2026-03-15", "x"],
+      ["2026-04-01", "x"],
+    ]);
+    expect(calcNegativeStreak(map, today)).toEqual({ days: 6, lastSlip: "2026-04-01" });
+  });
+
+  it("returns 0 days when the slip is today", () => {
+    const map = new Map([["2026-04-07", "x"]]);
+    expect(calcNegativeStreak(map, today)).toEqual({ days: 0, lastSlip: "2026-04-07" });
+  });
+
+  it("ignores slips after today", () => {
+    const map = new Map([["2026-05-01", "x"]]);
+    expect(calcNegativeStreak(map, today)).toEqual({ days: 0, lastSlip: null });
   });
 });
 

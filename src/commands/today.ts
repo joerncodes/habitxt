@@ -14,6 +14,7 @@ import {
   parseCompletions,
   filterCompletionsForStreak,
   calcCurrentStreak,
+  calcNegativeStreak,
   TodayEntry,
 } from "../lib.js";
 
@@ -21,6 +22,10 @@ import {
 function coloredCell(entry: TodayEntry): string {
   const m = entry.todayMarker;
   const cell = `[${m ?? " "}]`;
+  if (entry.isNegative) {
+    if (m === undefined) return chalk.green(cell);
+    return chalk.red(cell);
+  }
   switch (markerLevel(m, entry.thresholds, CONFIG.symbols)) {
     case "full":    return chalk.green(cell);
     case "partial": return chalk.yellow(cell);
@@ -35,6 +40,11 @@ function plainCell(entry: TodayEntry): string {
 
 function extraText(entry: TodayEntry): string {
   if (entry.isNumerical && entry.todayMarker) return `${entry.todayMarker} recorded`;
+  if (entry.isNegative) {
+    if (entry.negativeLastSlip === null) return "Never slipped";
+    if (entry.currentStreak > 0) return `${entry.currentStreak} days clean`;
+    return "";
+  }
   if (!entry.isNumerical && entry.currentStreak > 0) return `streak: ${entry.currentStreak}`;
   return "";
 }
@@ -72,10 +82,12 @@ export function todayCommand(program: Command) {
         process.stdout.write("\x1b[2J\x1b[H\x1b[?25l");
         process.stdout.write(chalk.bold(`Today — ${dayLabel}\n`));
 
-        const done  = entries.filter((e) => e.todayMarker !== undefined).length;
+        const onTrack = entries.filter((e) =>
+          e.isNegative ? e.todayMarker === undefined : e.todayMarker !== undefined
+        ).length;
         const total = entries.length;
-        const tally = done === total ? chalk.green(`${done}/${total}`) : `${done}/${total}`;
-        process.stdout.write(`${tally}${chalk.dim(" done · partials count")}\n\n`);
+        const tally = onTrack === total ? chalk.green(`${onTrack}/${total}`) : `${onTrack}/${total}`;
+        process.stdout.write(`${tally}${chalk.dim(" on track today")}\n\n`);
 
         let lastCategory: string | null | undefined = undefined;
         for (let i = 0; i < entries.length; i++) {
@@ -112,7 +124,9 @@ export function todayCommand(program: Command) {
           process.stdout.write(`  ${entry.name}${hintStr}: ${inputBuffer}`);
           process.stdout.write("\x1b[?25h"); // show cursor at input position
         } else {
-          process.stdout.write(chalk.dim("↑↓/jk navigate · Enter toggle · / partial · d delete · q quit") + "\n");
+          process.stdout.write(
+            chalk.dim("↑↓/jk navigate · Enter toggle · / partial · d clear today · q quit") + "\n",
+          );
         }
       };
 
@@ -123,8 +137,18 @@ export function todayCommand(program: Command) {
 
       /** Recompute streak and update the selected entry in-place. */
       const updateEntry = (newBodyContent: string, newMarker: string | undefined) => {
-        const entry             = entries[selected];
-        const completions       = parseCompletions(newBodyContent);
+        const entry       = entries[selected];
+        const completions = parseCompletions(newBodyContent);
+        if (entry.isNegative) {
+          const neg = calcNegativeStreak(completions, today);
+          entries[selected] = {
+            ...entry,
+            todayMarker:      newMarker,
+            currentStreak:      neg.days,
+            negativeLastSlip:   neg.lastSlip,
+          };
+          return;
+        }
         const streakCompletions = filterCompletionsForStreak(completions, entry.thresholds.partial);
         entries[selected] = {
           ...entry,
@@ -240,7 +264,7 @@ export function todayCommand(program: Command) {
         } else if (key === "x") {
           if (!entries[selected].isNumerical) setMarker(CONFIG.symbols.done);
         } else if (key === "/") {
-          if (!entries[selected].isNumerical) togglePartial();
+          if (!entries[selected].isNumerical && !entries[selected].isNegative) togglePartial();
         } else if (key === "d") {
           clearMarker();
         }

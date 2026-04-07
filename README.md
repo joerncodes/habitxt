@@ -20,8 +20,12 @@ Create a new habit interactively:
 
   habitxt create Meditate
 
-Prompts for an optional icon, description, category, and aliases. Creates
-habits/<Name>.md with the appropriate frontmatter.
+Prompts for an optional icon, description, **habit type**, category, and
+aliases. Type choices are shown as **bold** labels with a short explanation
+each: **boolean** (done/partial days), **numerical** (numeric log + thresholds),
+or **negative** (avoid-habit; slips vs. clean days). Numerical habits then
+ask for partial and full thresholds. Creates `habits/<Name>.md` with the
+appropriate frontmatter.
 
 ### do
 
@@ -32,8 +36,11 @@ Mark a habit complete for today (or a specific date):
   habitxt do Meditate --partial           # mark as partial (/)
   habitxt do Steps 8500                   # numerical habit
   habitxt do Steps 8500 2026-04-01        # numerical + specific date
+  habitxt do "No Alcohol"                 # negative habit: records a slip
 
-Running `do` on an archived habit automatically unarchives it.
+Running `do` on an archived habit automatically unarchives it. For **negative**
+habits, `do` records a slip (same file format as a completion); messaging
+refers to slips instead of “done”.
 
 ### show
 
@@ -42,8 +49,11 @@ Show the last 10 days and streak info for one habit:
   habitxt show Meditate
   habitxt show med            # aliases work too
 
-Output includes a color-coded 10-day grid (green = full, yellow = partial)
-and current and longest streak counts.
+Output includes a color-coded 10-day grid: for boolean habits, green = full,
+yellow = partial; for **negative** habits, green = clean day, red = slip.
+Streak lines are **current** and **longest** for boolean/numerical habits; for
+negative habits you get **current** clean streak only (**Never slipped** or
+`N days clean`), with no longest streak.
 
 ### month
 
@@ -55,7 +65,10 @@ Show a full monthly calendar grid for all habits:
 Each habit is one row; each day is one column. Color coding:
   green  = fully completed (x, or numerical >= full threshold)
   yellow = partially completed (/, or numerical >= partial threshold)
-  blank  = not done
+  red    = slip logged (**negative** habits only)
+  blank  = not done, no/below-threshold entry, or a future day
+
+For **negative** habits, days without a slip are **green**; days with a slip are **red**.
 
 ### today
 
@@ -68,11 +81,14 @@ completion counter at the top. Key bindings:
 
   ↑ / k         move up
   ↓ / j         move down
-  Enter         toggle full completion (done ↔ undone)
-  x             mark fully done
-  /             toggle partial completion (partial ↔ undone)
-  d             delete today's mark
+  Enter         toggle full completion (done ↔ undone), or slip ↔ clean for negative habits
+  x             mark fully done, or record a slip (negative)
+  /             toggle partial completion (partial ↔ undone); skipped for negative habits
+  d             clear today's mark (or clear today's slip for negative habits)
   q / Escape    quit
+
+The header counts **on track today**: done/logged rows for boolean and numerical
+habits, and **clean** (no slip) rows for negative habits.
 
 For numerical habits, pressing Enter prompts for a value inline and
 shows the partial and full thresholds as a hint. Backspace edits the
@@ -160,7 +176,7 @@ to record a partial completion. Both completion levels count toward streaks.
   category     Groups habits under a heading in `month`
   aliases      List of short names accepted by all commands
   status       Set to "archived" by the archive command
-  type         Set to "numerical" for numerical habits
+  type         "numerical" for numeric habits, "negative" for avoid-habits (slips)
   partial      Numerical threshold for partial credit (yellow)
   full         Numerical threshold for full credit (green)
 
@@ -191,6 +207,22 @@ Declare thresholds in frontmatter to get color coding in `month` and `show`:
 
 Values are displayed in the month grid — single digits centered, two-digit
 values right-aligned, values >= 100 shown as "99+".
+
+### Negative habits
+
+**Negative** habits track something you want to avoid (e.g. no alcohol). Each
+`- [x] YYYY-MM-DD` line is a **slip**; days with no line are **clean**. The
+**current** streak is consecutive clean days since the most recent slip on or
+before today (**Never slipped** if there is none). The file uses the same
+completion list as boolean habits; commands treat lines as slips and empty
+days as clean (`show`, `month`, `today`, `do`).
+
+Example:
+
+  ---
+  name: No Alcohol
+  type: negative
+  ---
 
 ## Contributing
 

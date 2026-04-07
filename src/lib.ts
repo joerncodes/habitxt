@@ -133,6 +133,32 @@ export function calcCurrentStreak(completions: Map<string, string>, today: Date)
   return streak;
 }
 
+/** Consecutive clean days since the most recent slip on or before `today`. Entries are slips. */
+export function calcNegativeStreak(
+  completions: Map<string, string>,
+  today: Date,
+): { days: number; lastSlip: string | null } {
+  const base = new Date(today);
+  base.setHours(0, 0, 0, 0);
+  const todayStr = isoLocal(base);
+  let lastSlip: string | null = null;
+  let bestUd = -Infinity;
+  for (const dateStr of completions.keys()) {
+    if (dateStr <= todayStr) {
+      const ud = utcDays(dateStr);
+      if (ud > bestUd) {
+        bestUd = ud;
+        lastSlip = dateStr;
+      }
+    }
+  }
+  if (lastSlip === null) {
+    return { days: 0, lastSlip: null };
+  }
+  const days = utcDays(todayStr) - utcDays(lastSlip);
+  return { days, lastSlip };
+}
+
 export interface Thresholds {
   partial: number | null;
   full: number | null;
@@ -170,6 +196,9 @@ export interface TodayEntry {
   icon?: string;
   category: string | null;
   isNumerical: boolean;
+  isNegative: boolean;
+  /** Set when `isNegative`: most recent slip on/before today, or `null` if never slipped. */
+  negativeLastSlip: string | null | undefined;
   thresholds: Thresholds;
   todayMarker: string | undefined;
   currentStreak: number;
@@ -192,13 +221,15 @@ export function loadTodayHabits(habitsDir: string, todayStr: string): TodayEntry
     const parsed = matter(raw);
     if (parsed.data.status === "archived") continue;
 
-    const isNumerical = parsed.data.type === "numerical";
+    const isNegative = parsed.data.type === "negative";
+    const isNumerical = !isNegative && parsed.data.type === "numerical";
     const thresholds: Thresholds = {
       partial: isNumerical ? (parsed.data.partial as number ?? null) : null,
       full:    isNumerical ? (parsed.data.full    as number ?? null) : null,
     };
     const completions = parseCompletions(parsed.content);
     const streakCompletions = filterCompletionsForStreak(completions, thresholds.partial);
+    const neg = isNegative ? calcNegativeStreak(completions, today) : null;
 
     entries.push({
       name:          (parsed.data.name as string | undefined) ?? path.basename(file, ".md"),
@@ -206,9 +237,11 @@ export function loadTodayHabits(habitsDir: string, todayStr: string): TodayEntry
       icon:          parsed.data.icon as string | undefined,
       category:      (parsed.data.category as string | undefined) ?? null,
       isNumerical,
+      isNegative,
+      negativeLastSlip: isNegative ? neg!.lastSlip : undefined,
       thresholds,
       todayMarker:   completions.get(todayStr),
-      currentStreak: calcCurrentStreak(streakCompletions, today),
+      currentStreak: isNegative ? neg!.days : calcCurrentStreak(streakCompletions, today),
     });
   }
 

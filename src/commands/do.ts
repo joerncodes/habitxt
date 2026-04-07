@@ -17,7 +17,8 @@ export function doCommand(program: Command) {
 
       const raw = fs.readFileSync(filePath, "utf8");
       const parsed = matter(raw);
-      const isNumerical = parsed.data.type === "numerical";
+      const isNegative = parsed.data.type === "negative";
+      const isNumerical = !isNegative && parsed.data.type === "numerical";
 
       let marker: string;
       let targetDate: string;
@@ -51,28 +52,41 @@ export function doCommand(program: Command) {
       switch (result.type) {
         case "added":
           fs.writeFileSync(filePath, matter.stringify(result.content, parsed.data));
-          console.log(isNumerical
-            ? `✓ "${habit}" recorded ${marker} on ${targetDate}.`
-            : `✓ "${habit}" marked as ${opts?.partial ? "partially done" : "done"} on ${targetDate}.`
+          console.log(
+            isNegative
+              ? `✓ "${habit}" — slip recorded on ${targetDate}.`
+              : isNumerical
+                ? `✓ "${habit}" recorded ${marker} on ${targetDate}.`
+                : `✓ "${habit}" marked as ${opts?.partial ? "partially done" : "done"} on ${targetDate}.`,
           );
           break;
         case "upgraded":
           fs.writeFileSync(filePath, matter.stringify(result.content, parsed.data));
-          console.log(isNumerical
-            ? `✓ "${habit}" updated to ${marker} on ${targetDate}.`
-            : `✓ "${habit}" upgraded from partial to done on ${targetDate}.`
+          console.log(
+            isNegative
+              ? `✓ "${habit}" — slip updated on ${targetDate}.`
+              : isNumerical
+                ? `✓ "${habit}" updated to ${marker} on ${targetDate}.`
+                : `✓ "${habit}" upgraded from partial to done on ${targetDate}.`,
           );
           break;
         case "already_done":
           if (wasArchived) fs.writeFileSync(filePath, matter.stringify(parsed.content, parsed.data));
-          console.log(isNumerical
-            ? `"${habit}" already recorded ${marker} on ${targetDate}.`
-            : `"${habit}" already ${result.marker === CONFIG.symbols.done ? "completed" : "partially completed"} on ${targetDate}.`
+          console.log(
+            isNegative
+              ? `"${habit}" already slipped on ${targetDate}.`
+              : isNumerical
+                ? `"${habit}" already recorded ${marker} on ${targetDate}.`
+                : `"${habit}" already ${result.marker === CONFIG.symbols.done ? "completed" : "partially completed"} on ${targetDate}.`,
           );
           break;
         case "downgrade_ignored":
           if (wasArchived) fs.writeFileSync(filePath, matter.stringify(parsed.content, parsed.data));
-          console.log(`"${habit}" already fully completed on ${targetDate}.`);
+          console.log(
+            isNegative
+              ? `"${habit}" already logged this slip on ${targetDate}.`
+              : `"${habit}" already fully completed on ${targetDate}.`,
+          );
           break;
       }
     });

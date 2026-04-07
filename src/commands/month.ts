@@ -14,6 +14,7 @@ export interface HabitRow {
   category: string | null;
   completions: Map<string, string>;
   thresholds: Thresholds;
+  isNegative: boolean;
 }
 
 export interface HabitGroup {
@@ -76,6 +77,7 @@ export function buildHabitCells(
   todayStr: string,
   thresholds: Thresholds = { partial: null, full: null },
   symbols: Symbols = DEFAULT_SYMBOLS,
+  isNegative = false,
 ): string[] {
   return Array.from({ length: daysInMonth }, (_, i) => {
     const d = i + 1;
@@ -83,6 +85,10 @@ export function buildHabitCells(
     if (dateStr > todayStr) return " ".repeat(MONTH_COL);
     const marker = completions.get(dateStr);
     const cell = formatCell(marker);
+    if (isNegative) {
+      if (!marker) return chalk.bgGreen.black(cell);
+      return chalk.bgRed.black(cell);
+    }
     switch (markerLevel(marker, thresholds, symbols)) {
       case "full":    return chalk.bgGreen.black(cell);
       case "partial": return thresholds.partial !== null
@@ -132,15 +138,18 @@ export function monthCommand(program: Command) {
         const raw = fs.readFileSync(path.join(HABITS_DIR, file), "utf8");
         const parsed = matter(raw);
         if (parsed.data.status === "archived") return [];
+        const isNegative = parsed.data.type === "negative";
+        const isNumerical = !isNegative && parsed.data.type === "numerical";
         return [{
           name: (parsed.data.name as string | undefined) ?? path.basename(file, ".md"),
           icon: parsed.data.icon as string | undefined,
           category: (parsed.data.category as string | undefined) ?? null,
           completions: parseCompletions(parsed.content),
           thresholds: {
-            partial: parsed.data.type === "numerical" ? (parsed.data.partial as number ?? null) : null,
-            full:    parsed.data.type === "numerical" ? (parsed.data.full    as number ?? null) : null,
+            partial: isNumerical ? (parsed.data.partial as number ?? null) : null,
+            full:    isNumerical ? (parsed.data.full    as number ?? null) : null,
           },
+          isNegative,
         }];
       });
 
@@ -160,7 +169,16 @@ export function monthCommand(program: Command) {
         console.log();
         if (group.category) console.log(chalk.bold(group.category));
         for (const habit of group.habits) {
-          const cells = buildHabitCells(habit.completions, year, month, daysInMonth, todayStr, habit.thresholds, CONFIG.symbols);
+          const cells = buildHabitCells(
+            habit.completions,
+            year,
+            month,
+            daysInMonth,
+            todayStr,
+            habit.thresholds,
+            CONFIG.symbols,
+            habit.isNegative,
+          );
           const { label, width } = habitLabel(habit.name, habit.icon);
           const padding = " ".repeat(labelWidth - width + 2);
           console.log(label + padding + cells.join(""));
