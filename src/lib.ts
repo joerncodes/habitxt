@@ -423,6 +423,27 @@ export function habitShownInMonthAndToday(status: unknown): boolean {
   return status !== "archived" && status !== "hidden";
 }
 
+/** Frontmatter `category`: `null` when missing or blank. */
+export function normalizeHabitCategory(data: Record<string, unknown>): string | null {
+  const raw = data.category;
+  if (raw === undefined || raw === null) return null;
+  const t = String(raw).trim();
+  return t === "" ? null : t;
+}
+
+/**
+ * Case-insensitive filter for `habitxt year --category`.
+ * `uncategorized` and `none` match habits with no category.
+ */
+export function habitMatchesCategoryFilter(habitCategory: string | null, filterRaw: string): boolean {
+  const f = filterRaw.trim().toLowerCase();
+  if (f === "uncategorized" || f === "none") {
+    return habitCategory === null;
+  }
+  if (habitCategory === null) return false;
+  return habitCategory.trim().toLowerCase() === f;
+}
+
 /**
  * Column index of `d` in a 7-day row (`0` = week start column).
  * JS `Date#getDay()`: Sunday = 0 … Saturday = 6.

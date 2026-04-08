@@ -202,6 +202,17 @@ Set which weekday appears in the first column of the yearly heatmap:
 Allowed values are `"sun"` (default) or `"mon"`. Local `habitxt.toml` overrides
 `~/.habitxt.toml` when both set `weekStart`.
 
+### Year heatmap category
+
+`habitxt year` can include only habits in one category:
+
+```bash
+habitxt year --category Health
+habitxt year -c uncategorized   # habits with no category
+```
+
+Matching is case-insensitive. Use `uncategorized` or `none` for habits whose frontmatter has no `category` (or an empty value).
+
 ## Habits
 
 ### Choosing a Folder

@@ -22,7 +22,7 @@ node run.js <command>  # run the CLI locally (tsx shim, no build step needed)
 - `do.ts` — marks a habit complete or partial; delegates logic to `applyCompletion`
 - `show.ts` — displays the last 10 days, current streak, and longest streak; numerical habits get an ASCII chart with optional `min`/`max` axis from frontmatter (`parseNumericChartAxis`)
 - `month.ts` — monthly grid for all open habits; each row gets a last-7-day sparkline (numerical / boolean / negative — see `numericSparkline`, `discreteSparkline`, `negativeSparklineForDays`)
-- `year.ts` — yearly aggregate heatmap (`buildYearDayCompletionCounts`, `ratioToHeatmapStep`, `HEATMAP_RGB`); week columns from `weekStart` in `habitxt.toml` (`sun`|`mon`, default `sun`)
+- `year.ts` — yearly aggregate heatmap (`buildYearDayCompletionCounts`, `ratioToHeatmapStep`, `HEATMAP_RGB`); week columns from `weekStart` in `habitxt.toml` (`sun`|`mon`, default `sun`); optional `--category` / `-c` (`habitMatchesCategoryFilter`)
 - `streak.ts` — leaderboard of open habits (`loadTodayHabits`: `currentStreak` + `longestStreak`); `--sort current|longest`; table output via `cli-table3`; never-slipped negative habits sort first for either key
 - `list.ts` — hidden `_list` only (shell completion enumerates habit names)
 - `today.ts` — interactive TUI; **n** opens note entry (Enter save, Esc cancel)

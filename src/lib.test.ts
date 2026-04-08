@@ -22,6 +22,8 @@ import {
   isoLocal,
   resolveDoDate,
   habitShownInMonthAndToday,
+  normalizeHabitCategory,
+  habitMatchesCategoryFilter,
   completionMarkersOnly,
   parseNumericChartAxis,
   mondayFirstColumnIndex,
@@ -46,6 +48,35 @@ describe("habitShownInMonthAndToday", () => {
   it("is false for archived and hidden", () => {
     expect(habitShownInMonthAndToday("archived")).toBe(false);
     expect(habitShownInMonthAndToday("hidden")).toBe(false);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// normalizeHabitCategory / habitMatchesCategoryFilter
+// ---------------------------------------------------------------------------
+
+describe("normalizeHabitCategory", () => {
+  it("returns null when missing or blank", () => {
+    expect(normalizeHabitCategory({})).toBe(null);
+    expect(normalizeHabitCategory({ category: "" })).toBe(null);
+    expect(normalizeHabitCategory({ category: "  " })).toBe(null);
+  });
+
+  it("trims non-empty category", () => {
+    expect(normalizeHabitCategory({ category: " Health " })).toBe("Health");
+  });
+});
+
+describe("habitMatchesCategoryFilter", () => {
+  it("matches uncategorized aliases only to null category", () => {
+    expect(habitMatchesCategoryFilter(null, "uncategorized")).toBe(true);
+    expect(habitMatchesCategoryFilter(null, "none")).toBe(true);
+    expect(habitMatchesCategoryFilter("Health", "uncategorized")).toBe(false);
+  });
+
+  it("matches named categories case-insensitively", () => {
+    expect(habitMatchesCategoryFilter("Health", "health")).toBe(true);
+    expect(habitMatchesCategoryFilter("Health", "Work")).toBe(false);
   });
 });
 

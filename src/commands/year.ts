@@ -9,6 +9,8 @@ import {
   CONFIG,
   parseCompletions,
   habitShownInMonthAndToday,
+  normalizeHabitCategory,
+  habitMatchesCategoryFilter,
   buildYearDayCompletionCounts,
   weekStartColumnIndex,
   ratioToHeatmapStep,
@@ -154,7 +156,11 @@ export function yearCommand(program: Command) {
     .command("year")
     .description("Calendar year heatmap: each day colored by how many open habits were on track")
     .option("-y, --year <YYYY>", "Calendar year (default: current year)")
-    .action((opts: { year?: string }) => {
+    .option(
+      "-c, --category <name>",
+      'Only habits in this category (match is case-insensitive; use "uncategorized" or "none" for uncategorized)',
+    )
+    .action((opts: { year?: string; category?: string }) => {
       const today = new Date();
       today.setHours(0, 0, 0, 0);
       const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
@@ -172,6 +178,7 @@ export function yearCommand(program: Command) {
       }
 
       const weekStart: WeekStart = CONFIG.weekStart;
+      const categoryFilter = opts.category?.trim();
 
       const files = fs.readdirSync(HABITS_DIR).filter((f) => f.endsWith(".md")).sort();
       if (files.length === 0) {
@@ -184,6 +191,8 @@ export function yearCommand(program: Command) {
         const raw = fs.readFileSync(path.join(HABITS_DIR, file), "utf8");
         const parsed = matter(raw);
         if (!habitShownInMonthAndToday(parsed.data.status)) continue;
+        const cat = normalizeHabitCategory(parsed.data as Record<string, unknown>);
+        if (categoryFilter && !habitMatchesCategoryFilter(cat, categoryFilter)) continue;
         const isNegative = parsed.data.type === "negative";
         const isNumerical = !isNegative && parsed.data.type === "numerical";
         const thresholds: Thresholds = {
@@ -198,7 +207,9 @@ export function yearCommand(program: Command) {
       }
 
       if (habits.length === 0) {
-        console.log("No habits found.");
+        console.log(
+          categoryFilter ? "No habits in that category." : "No habits found.",
+        );
         return;
       }
 
@@ -206,7 +217,11 @@ export function yearCommand(program: Command) {
       const total = habits.length;
 
       console.log();
-      console.log(chalk.bold(`${year} — ${total} habit${total === 1 ? "" : "s"}`));
+      const filterSuffix =
+        categoryFilter && categoryFilter.length > 0
+          ? ` · ${categoryFilter}`
+          : "";
+      console.log(chalk.bold(`${year} — ${total} habit${total === 1 ? "" : "s"}${filterSuffix}`));
       console.log(
         chalk.dim(
           "5 block colors; dim blocks = none on track or future",
