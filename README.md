@@ -75,6 +75,11 @@ Each habit is one row; each day is one column. Color coding:
 
 For **negative** habits, days without a slip are **green**; days with a slip are **red**.
 
+Each row ends with a dim `7d` prefix and a last-seven-day Unicode block
+sparkline (▁…█): **numerical** habits scale logged values (optional **`min`** /
+**`max`** like `show`); **boolean** habits use three heights (none / partial /
+full); **negative** habits use low for clean days and high for slips.
+
 ### today
 
 Open an interactive full-screen view for marking today's habits:

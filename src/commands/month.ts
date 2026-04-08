@@ -15,8 +15,18 @@ import {
   Symbols,
   DEFAULT_SYMBOLS,
   habitShownInMonthAndToday,
+  lastNDaysFromToday,
+  discreteSparkline,
+  markerLevelsForDays,
+  negativeSparklineForDays,
+  numericSparkline,
+  numericValuesForDays,
+  parseNumericChartAxis,
   type CompletionEntry,
+  type NumericChartAxis,
 } from "../lib.js";
+
+const SPARK_DAYS = 7;
 
 export const DOW = ["S", "M", "T", "W", "T", "F", "S"];
 export const MONTH_COL = 3;
@@ -28,6 +38,9 @@ export interface HabitRow {
   completions: Map<string, CompletionEntry>;
   thresholds: Thresholds;
   isNegative: boolean;
+  isNumerical: boolean;
+  /** Present for numerical habits when frontmatter has valid `min`/`max`. */
+  chartAxis?: NumericChartAxis;
 }
 
 export interface HabitGroup {
@@ -115,7 +128,7 @@ export function buildHabitCells(
 export function monthCommand(program: Command) {
   program
     .command("month")
-    .description("Show a monthly dashboard for all habits")
+    .description("Show a monthly dashboard for all habits (last-7-day sparkline per row)")
     .option("-m, --month <YYYY-MM>", "Month to display (default: current month)")
     .action((opts: { month?: string }) => {
       const today = new Date();
@@ -140,6 +153,11 @@ export function monthCommand(program: Command) {
       const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
       const todayDay = today.getFullYear() === year && today.getMonth() === month ? today.getDate() : null;
 
+      const todayNorm = new Date(today);
+      todayNorm.setHours(0, 0, 0, 0);
+      const sparkDays = lastNDaysFromToday(todayNorm, SPARK_DAYS);
+      const dimSparkPrefix = chalk.dim(`${SPARK_DAYS}d `);
+
       // Load all habits
       const files = fs.readdirSync(HABITS_DIR).filter((f) => f.endsWith(".md")).sort();
       if (files.length === 0) {
@@ -153,6 +171,7 @@ export function monthCommand(program: Command) {
         if (!habitShownInMonthAndToday(parsed.data.status)) return [];
         const isNegative = parsed.data.type === "negative";
         const isNumerical = !isNegative && parsed.data.type === "numerical";
+        const chartAxis = parseNumericChartAxis(parsed.data as Record<string, unknown>);
         return [{
           name: (parsed.data.name as string | undefined) ?? path.basename(file, ".md"),
           icon: parsed.data.icon as string | undefined,
@@ -163,6 +182,8 @@ export function monthCommand(program: Command) {
             full:    isNumerical ? (parsed.data.full    as number ?? null) : null,
           },
           isNegative,
+          isNumerical,
+          chartAxis,
         }];
       });
 
@@ -194,7 +215,23 @@ export function monthCommand(program: Command) {
           );
           const { label, width } = habitLabel(habit.name, habit.icon);
           const padding = " ".repeat(labelWidth - width + 2);
-          console.log(label + padding + cells.join(""));
+          const row = label + padding + cells.join("");
+          let spark: string;
+          if (habit.isNumerical) {
+            const values = numericValuesForDays(habit.completions, sparkDays);
+            spark = numericSparkline(values, habit.chartAxis);
+          } else if (habit.isNegative) {
+            spark = negativeSparklineForDays(habit.completions, sparkDays);
+          } else {
+            const levels = markerLevelsForDays(
+              habit.completions,
+              sparkDays,
+              habit.thresholds,
+              CONFIG.symbols,
+            );
+            spark = discreteSparkline(levels);
+          }
+          console.log(row + "  " + dimSparkPrefix + chalk.dim(spark));
         }
       }
 

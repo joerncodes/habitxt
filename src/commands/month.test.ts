@@ -12,6 +12,7 @@ const habit = (name: string, category: string | null = null): HabitRow => ({
   completions: new Map(),
   thresholds: { partial: null, full: null },
   isNegative: false,
+  isNumerical: false,
 });
 
 // ---------------------------------------------------------------------------

@@ -13,6 +13,12 @@ import {
   filterCompletionsForStreak,
   markerLevel,
   numericValuesForDays,
+  lastNDaysFromToday,
+  numericSparkline,
+  discreteSparkline,
+  markerLevelsForDays,
+  negativeSparklineForDays,
+  isoLocal,
   resolveDoDate,
   habitShownInMonthAndToday,
   completionMarkersOnly,
@@ -448,6 +454,82 @@ describe("numericValuesForDays", () => {
     const completions = parseCompletions("\n- [x] 2026-04-05\n- [/] 2026-04-06\n");
     const days = [new Date(2026, 3, 5), new Date(2026, 3, 6)];
     expect(numericValuesForDays(completions, days)).toEqual([0, 0]);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// lastNDaysFromToday
+// ---------------------------------------------------------------------------
+
+describe("lastNDaysFromToday", () => {
+  it("returns n local days oldest-first ending on today", () => {
+    const t = new Date(2026, 3, 8);
+    expect(lastNDaysFromToday(t, 7).map(isoLocal)).toEqual([
+      "2026-04-02",
+      "2026-04-03",
+      "2026-04-04",
+      "2026-04-05",
+      "2026-04-06",
+      "2026-04-07",
+      "2026-04-08",
+    ]);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// numericSparkline
+// ---------------------------------------------------------------------------
+
+describe("numericSparkline", () => {
+  it("returns empty for empty input", () => {
+    expect(numericSparkline([])).toBe("");
+  });
+
+  it("maps endpoints to bottom and top blocks", () => {
+    expect(numericSparkline([0, 100])).toBe("\u2581\u2588");
+  });
+
+  it("uses flat bottom for all zeros", () => {
+    expect(numericSparkline([0, 0, 0])).toBe("\u2581\u2581\u2581");
+  });
+
+  it("uses mid block for constant non-zero series", () => {
+    expect(numericSparkline([42, 42, 42])).toBe("\u2585\u2585\u2585");
+  });
+
+  it("expands range with axis min/max like show", () => {
+    expect(numericSparkline([50, 50], { min: 0, max: 100 })).toBe("\u2585\u2585");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// markerLevelsForDays / discreteSparkline / negativeSparklineForDays
+// ---------------------------------------------------------------------------
+
+describe("markerLevelsForDays", () => {
+  it("returns marker levels in day order", () => {
+    const completions = parseCompletions("\n- [x] 2026-04-07\n- [/] 2026-04-08\n");
+    const days = [new Date(2026, 3, 7), new Date(2026, 3, 8)];
+    expect(markerLevelsForDays(completions, days, { partial: null, full: null })).toEqual([
+      "full",
+      "partial",
+    ]);
+  });
+});
+
+describe("discreteSparkline", () => {
+  it("maps none and low to bottom, partial to mid, full to top", () => {
+    expect(discreteSparkline(["none", "partial", "full", "low"])).toBe(
+      "\u2581\u2585\u2588\u2581",
+    );
+  });
+});
+
+describe("negativeSparklineForDays", () => {
+  it("uses bottom for clean days and top for slips", () => {
+    const completions = parseCompletions("\n- [x] 2026-04-07\n");
+    const days = [new Date(2026, 3, 6), new Date(2026, 3, 7)];
+    expect(negativeSparklineForDays(completions, days)).toBe("\u2581\u2588");
   });
 });
 

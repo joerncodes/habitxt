@@ -12,6 +12,8 @@ All notable changes to this project are documented in this file.
 
 - **Numerical chart axis:** optional frontmatter **`min`** and **`max`** anchor the y-axis for the ASCII value chart in `show` (merged with data extrema by `asciichart`). `habit create` asks optional chart min/max after thresholds. Library helper `parseNumericChartAxis`.
 
+- **`habitxt month`:** every habit row appends an inline last-**7**-day Unicode block sparkline after the calendar grid: **numerical** habits use a scaled line (`numericValuesForDays`; optional **`min`** / **`max`** like `show`); **boolean** habits use three heights for none / partial / full (`markerLevelsForDays`, `discreteSparkline`); **negative** habits use low = clean and high = slip (`negativeSparklineForDays`). Library helper `lastNDaysFromToday` defines the window.
+
 ## [1.1.2] — 2026-04-08
 
 ### Added

@@ -4,6 +4,7 @@ import matter from "gray-matter";
 import { parseDate } from "chrono-node";
 import stringWidth from "string-width";
 import { HABITS_DIR, CONFIG } from "./config.js";
+import type { Symbols } from "./config.js";
 export { HABITS_DIR, CONFIG };
 export type { Symbols, ResolvedConfig } from "./config.js";
 
@@ -294,6 +295,44 @@ export function numericValuesForDays(completions: Map<string, CompletionEntry>, 
   });
 }
 
+/** Last `n` calendar days ending on `today` (local midnight), oldest first — same window shape as `show`. */
+export function lastNDaysFromToday(today: Date, n: number): Date[] {
+  const t = new Date(today);
+  t.setHours(0, 0, 0, 0);
+  const days: Date[] = [];
+  for (let i = n - 1; i >= 0; i--) {
+    const d = new Date(t);
+    d.setDate(t.getDate() - i);
+    days.push(d);
+  }
+  return days;
+}
+
+const SPARK_BLOCKS = ["\u2581", "\u2582", "\u2583", "\u2584", "\u2585", "\u2586", "\u2587", "\u2588"] as const;
+
+/**
+ * Unicode block sparkline (8 levels). Empty input yields an empty string.
+ * Optional `axis` merges `min`/`max` with data extrema like `show`’s chart.
+ */
+export function numericSparkline(values: number[], axis?: NumericChartAxis): string {
+  if (values.length === 0) return "";
+  let lo = Math.min(...values);
+  let hi = Math.max(...values);
+  if (axis?.min !== undefined) lo = Math.min(lo, axis.min);
+  if (axis?.max !== undefined) hi = Math.max(hi, axis.max);
+  if (hi <= lo) {
+    const v = values[0]!;
+    const b = v === 0 ? 0 : 4;
+    return values.map(() => SPARK_BLOCKS[b]).join("");
+  }
+  const span = hi - lo;
+  return values.map((v) => {
+    const t = (v - lo) / span;
+    const blockIdx = Math.min(7, Math.max(0, Math.round(t * 7)));
+    return SPARK_BLOCKS[blockIdx];
+  }).join("");
+}
+
 export function markerLevel(
   marker: string | undefined,
   thresholds: Thresholds,
@@ -306,6 +345,39 @@ export function markerLevel(
   if (thresholds.full !== null && v >= thresholds.full) return "full";
   if (thresholds.partial !== null && v >= thresholds.partial) return "partial";
   return "low";
+}
+
+/** Per-day `markerLevel` for a day list (oldest first). */
+export function markerLevelsForDays(
+  completions: Map<string, CompletionEntry>,
+  days: Date[],
+  thresholds: Thresholds,
+  symbols: Symbols = DEFAULT_SYMBOLS,
+): ("full" | "partial" | "low" | "none")[] {
+  return days.map((d) => {
+    const m = completions.get(isoLocal(d))?.marker;
+    return markerLevel(m, thresholds, symbols);
+  });
+}
+
+/**
+ * Tri-state Unicode sparkline for boolean-style levels: none/low → bottom,
+ * partial → mid, full → top.
+ */
+export function discreteSparkline(levels: ("full" | "partial" | "low" | "none")[]): string {
+  return levels
+    .map((l) => SPARK_BLOCKS[l === "full" ? 7 : l === "partial" ? 4 : 0])
+    .join("");
+}
+
+/** Negative habit: clean day → bottom block, slip → top. */
+export function negativeSparklineForDays(completions: Map<string, CompletionEntry>, days: Date[]): string {
+  return days
+    .map((d) => {
+      const m = completions.get(isoLocal(d))?.marker.trim() ?? "";
+      return SPARK_BLOCKS[m ? 7 : 0];
+    })
+    .join("");
 }
 
 export interface TodayEntry {

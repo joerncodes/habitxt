@@ -21,6 +21,8 @@ node run.js <command>  # run the CLI locally (tsx shim, no build step needed)
 **Commands** live in `src/commands/`:
 - `do.ts` — marks a habit complete or partial; delegates logic to `applyCompletion`
 - `show.ts` — displays the last 10 days, current streak, and longest streak; numerical habits get an ASCII chart with optional `min`/`max` axis from frontmatter (`parseNumericChartAxis`)
+- `month.ts` — monthly grid for all open habits; each row gets a last-7-day sparkline (numerical / boolean / negative — see `numericSparkline`, `discreteSparkline`, `negativeSparklineForDays`)
+- `list.ts` — hidden `_list` only (shell completion enumerates habit names)
 - `today.ts` — interactive TUI; **n** opens note entry (Enter save, Esc cancel)
 
 **Pure logic** lives in `src/lib.ts` — all functions here are side-effect-free and fully tested in `src/lib.test.ts`. Commands handle only I/O (file read/write, console output).
@@ -39,7 +41,7 @@ description: 10 minutes of mindfulness meditation
 - [x] 2026-04-07
 ```
 
-`[x]` = fully completed, `[/]` = partial. Both count toward streaks. Entries are kept sorted by date. A missing date is an uncompleted day. Optional **completion notes** may follow the date: `- [x] 2026-04-08 optional text` (see `parseCompletionLine` / `CompletionEntry` in `lib.ts`). For **`type: numerical`**, optional frontmatter **`min`** / **`max`** set chart y-axis anchors for `show` (`parseNumericChartAxis`).
+`[x]` = fully completed, `[/]` = partial. Both count toward streaks. Entries are kept sorted by date. A missing date is an uncompleted day. Optional **completion notes** may follow the date: `- [x] 2026-04-08 optional text` (see `parseCompletionLine` / `CompletionEntry` in `lib.ts`). For **`type: numerical`**, optional frontmatter **`min`** / **`max`** set chart y-axis anchors for `show` and scale the `month` sparkline (`parseNumericChartAxis`).
 
 ## Key implementation notes
 
