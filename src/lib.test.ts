@@ -24,6 +24,12 @@ import {
   habitShownInMonthAndToday,
   completionMarkersOnly,
   parseNumericChartAxis,
+  mondayFirstColumnIndex,
+  habitOnTrackForHeatmap,
+  buildYearDayCompletionCounts,
+  ratioToHeatmapStep,
+  HEATMAP_STEP_COUNT,
+  HEATMAP_RGB,
 } from "./lib.js";
 
 // ---------------------------------------------------------------------------
@@ -39,6 +45,85 @@ describe("habitShownInMonthAndToday", () => {
   it("is false for archived and hidden", () => {
     expect(habitShownInMonthAndToday("archived")).toBe(false);
     expect(habitShownInMonthAndToday("hidden")).toBe(false);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// mondayFirstColumnIndex
+// ---------------------------------------------------------------------------
+
+describe("mondayFirstColumnIndex", () => {
+  it("maps Jan 1 2026 (Thursday) to column 3", () => {
+    expect(mondayFirstColumnIndex(new Date(2026, 0, 1))).toBe(3);
+  });
+
+  it("maps Monday to 0 and Sunday to 6", () => {
+    expect(mondayFirstColumnIndex(new Date(2026, 3, 6))).toBe(0); // Mon Apr 6 2026
+    expect(mondayFirstColumnIndex(new Date(2026, 3, 12))).toBe(6); // Sun Apr 12 2026
+  });
+});
+
+// ---------------------------------------------------------------------------
+// habitOnTrackForHeatmap / buildYearDayCompletionCounts
+// ---------------------------------------------------------------------------
+
+describe("habitOnTrackForHeatmap", () => {
+  it("is true for a negative habit with no slip on that day", () => {
+    const completions = new Map();
+    expect(habitOnTrackForHeatmap(completions, "2026-04-05", { partial: null, full: null }, true)).toBe(true);
+  });
+
+  it("is false for a negative habit with a slip on that day", () => {
+    const completions = new Map([["2026-04-05", { marker: "x" }]]);
+    expect(habitOnTrackForHeatmap(completions, "2026-04-05", { partial: null, full: null }, true)).toBe(false);
+  });
+
+  it("uses streak qualifying days for boolean habits", () => {
+    const completions = new Map([["2026-04-05", { marker: "x" }]]);
+    expect(habitOnTrackForHeatmap(completions, "2026-04-05", { partial: null, full: null }, false)).toBe(true);
+    expect(habitOnTrackForHeatmap(completions, "2026-04-06", { partial: null, full: null }, false)).toBe(false);
+  });
+});
+
+describe("buildYearDayCompletionCounts", () => {
+  it("sums counts per day across habits", () => {
+    const habits = [
+      {
+        completions: new Map([["2026-06-01", { marker: "x" }]]),
+        thresholds: { partial: null, full: null },
+        isNegative: false,
+      },
+      {
+        completions: new Map(),
+        thresholds: { partial: null, full: null },
+        isNegative: false,
+      },
+    ];
+    const counts = buildYearDayCompletionCounts(habits, 2026);
+    expect(counts.get("2026-06-01")).toBe(1);
+    expect(counts.get("2026-06-02")).toBe(0);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// ratioToHeatmapStep / HEATMAP_RGB
+// ---------------------------------------------------------------------------
+
+describe("ratioToHeatmapStep", () => {
+  it("returns null for zero completed or no habits", () => {
+    expect(ratioToHeatmapStep(0, 5)).toBe(null);
+    expect(ratioToHeatmapStep(3, 0)).toBe(null);
+  });
+
+  it("uses 10 ratio buckets", () => {
+    expect(ratioToHeatmapStep(1, 10)).toBe(1);
+    expect(ratioToHeatmapStep(5, 10)).toBe(5);
+    expect(ratioToHeatmapStep(10, 10)).toBe(9);
+    expect(ratioToHeatmapStep(9, 10)).toBe(9);
+  });
+
+  it("matches HEATMAP_RGB length", () => {
+    expect(HEATMAP_RGB.length).toBe(HEATMAP_STEP_COUNT);
   });
 });
 

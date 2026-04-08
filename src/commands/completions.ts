@@ -19,6 +19,7 @@ _habitxt() {
       'hide:Hide a habit from month and today'
       'unhide:Show a hidden habit again'
       'month:Show monthly dashboard'
+      'year:Calendar year heatmap (all habits)'
       'streak:Rank habits by current streak'
       'create:Create a new habit interactively'
       'completions:Output shell completion script'
@@ -44,7 +45,7 @@ _habitxt "$@"`,
 _habitxt() {
   local cmd="\${COMP_WORDS[1]}"
   if [[ $COMP_CWORD -eq 1 ]]; then
-    COMPREPLY=($(compgen -W "do show archive hide unhide month streak create completions" -- "\${COMP_WORDS[1]}"))
+    COMPREPLY=($(compgen -W "do show archive hide unhide month year streak create completions" -- "\${COMP_WORDS[1]}"))
   elif [[ $COMP_CWORD -eq 2 && ( "$cmd" == "do" || "$cmd" == "show" || "$cmd" == "archive" || "$cmd" == "hide" || "$cmd" == "unhide" ) ]]; then
     _habitxt_habits
   fi
@@ -63,6 +64,7 @@ complete -c habitxt -n '__fish_use_subcommand' -a archive -d 'Archive a habit'
 complete -c habitxt -n '__fish_use_subcommand' -a hide    -d 'Hide a habit from month and today'
 complete -c habitxt -n '__fish_use_subcommand' -a unhide  -d 'Show a hidden habit again'
 complete -c habitxt -n '__fish_use_subcommand' -a month   -d 'Show monthly dashboard'
+complete -c habitxt -n '__fish_use_subcommand' -a year    -d 'Calendar year heatmap (all habits)'
 complete -c habitxt -n '__fish_use_subcommand' -a streak  -d 'Rank habits by current streak'
 complete -c habitxt -n '__fish_use_subcommand' -a create  -d 'Create a new habit interactively'
 complete -c habitxt -n '__fish_use_subcommand' -a completions -d 'Output shell completion script'

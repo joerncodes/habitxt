@@ -423,6 +423,79 @@ export function habitShownInMonthAndToday(status: unknown): boolean {
   return status !== "archived" && status !== "hidden";
 }
 
+/** Monday-first weekday column: `0` = Monday … `6` = Sunday. */
+export function mondayFirstColumnIndex(d: Date): number {
+  return (d.getDay() + 6) % 7;
+}
+
+export interface HabitHeatInput {
+  completions: Map<string, CompletionEntry>;
+  thresholds: Thresholds;
+  isNegative: boolean;
+}
+
+/**
+ * Whether a habit counts as “on track” on `dateStr` for the yearly aggregate heatmap:
+ * boolean/numerical — same qualifying days as streaks (`filterCompletionsForStreak`);
+ * negative — clean day (no slip on that date).
+ */
+export function habitOnTrackForHeatmap(
+  completions: Map<string, CompletionEntry>,
+  dateStr: string,
+  thresholds: Thresholds,
+  isNegative: boolean,
+): boolean {
+  if (isNegative) {
+    const m = completions.get(dateStr)?.marker?.trim() ?? "";
+    return m === "";
+  }
+  const streak = filterCompletionsForStreak(completions, thresholds.partial);
+  return streak.has(dateStr);
+}
+
+/** Per ISO date in `year`, how many open habits are on track that day (see `habitOnTrackForHeatmap`). */
+export function buildYearDayCompletionCounts(habits: HabitHeatInput[], year: number): Map<string, number> {
+  const out = new Map<string, number>();
+  const start = new Date(year, 0, 1);
+  const end = new Date(year, 11, 31);
+  for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
+    const dateStr = isoLocal(d);
+    let n = 0;
+    for (const h of habits) {
+      if (habitOnTrackForHeatmap(h.completions, dateStr, h.thresholds, h.isNegative)) n++;
+    }
+    out.set(dateStr, n);
+  }
+  return out;
+}
+
+/** Discrete heat levels for `year` (completion ratio buckets). */
+export const HEATMAP_STEP_COUNT = 10;
+
+/**
+ * Maps `completed / total` to `0 .. HEATMAP_STEP_COUNT - 1` (darker = lower share on track).
+ * Returns `null` when the cell should be dim (no habits, or zero on track).
+ */
+export function ratioToHeatmapStep(completed: number, total: number): number | null {
+  if (total === 0) return null;
+  if (completed <= 0) return null;
+  return Math.min(HEATMAP_STEP_COUNT - 1, Math.floor((completed / total) * HEATMAP_STEP_COUNT));
+}
+
+/** RGB background for each heat step (low → high ratio). */
+export const HEATMAP_RGB: readonly [number, number, number][] = [
+  [84, 22, 28],
+  [118, 28, 22],
+  [152, 48, 22],
+  [186, 78, 26],
+  [206, 118, 36],
+  [198, 162, 52],
+  [142, 176, 78],
+  [86, 158, 96],
+  [44, 130, 98],
+  [26, 102, 74],
+];
+
 /**
  * Loads habits that appear in `today` (open habits only — not archived or hidden)
  * and returns them as TodayEntry[], sorted by category (alphabetically,
