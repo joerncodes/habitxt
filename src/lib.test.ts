@@ -115,11 +115,13 @@ describe("ratioToHeatmapStep", () => {
     expect(ratioToHeatmapStep(3, 0)).toBe(null);
   });
 
-  it("uses 10 ratio buckets", () => {
-    expect(ratioToHeatmapStep(1, 10)).toBe(1);
-    expect(ratioToHeatmapStep(5, 10)).toBe(5);
-    expect(ratioToHeatmapStep(10, 10)).toBe(9);
-    expect(ratioToHeatmapStep(9, 10)).toBe(9);
+  it("uses 5 percentile buckets like heatmapper (20% bands; 100% → top)", () => {
+    expect(ratioToHeatmapStep(1, 10)).toBe(0); // 10%
+    expect(ratioToHeatmapStep(2, 10)).toBe(1); // 20%
+    expect(ratioToHeatmapStep(5, 10)).toBe(2); // 50%
+    expect(ratioToHeatmapStep(8, 10)).toBe(4); // 80%
+    expect(ratioToHeatmapStep(9, 10)).toBe(4); // 90%
+    expect(ratioToHeatmapStep(10, 10)).toBe(4); // 100%
   });
 
   it("matches HEATMAP_RGB length", () => {

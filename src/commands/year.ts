@@ -200,7 +200,7 @@ export function yearCommand(program: Command) {
       console.log(chalk.bold(`${year} — ${total} habit${total === 1 ? "" : "s"}`));
       console.log(
         chalk.dim(
-          "10 block colors (light gray → greens, heatmapper “github” palette); dim blocks = none on track or future",
+          "5 block colors; dim blocks = none on track or future",
         ),
       );
       console.log();

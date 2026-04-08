@@ -469,35 +469,30 @@ export function buildYearDayCompletionCounts(habits: HabitHeatInput[], year: num
   return out;
 }
 
-/** Discrete heat levels for `year` (completion ratio buckets). */
-export const HEATMAP_STEP_COUNT = 10;
+/** Same count as [heatmapper](https://github.com/masukomi/heatmapper) color entries per scheme (`heatmap.scm`). */
+export const HEATMAP_STEP_COUNT = 5;
 
 /**
- * Maps `completed / total` to `0 .. HEATMAP_STEP_COUNT - 1` (darker = lower share on track).
+ * Maps completion share to a heat step like heatmapper’s percentile buckets:
+ * `floor(percentage / 20)` into `0..4`, with 100% capped to the top bucket (same as their `percentage` 100 → index 4).
  * Returns `null` when the cell should be dim (no habits, or zero on track).
  */
 export function ratioToHeatmapStep(completed: number, total: number): number | null {
   if (total === 0) return null;
   if (completed <= 0) return null;
-  return Math.min(HEATMAP_STEP_COUNT - 1, Math.floor((completed / total) * HEATMAP_STEP_COUNT));
+  const pct = Math.floor((completed * 100) / total);
+  return Math.min(HEATMAP_STEP_COUNT - 1, Math.floor(pct / 20));
 }
 
 /**
- * RGB backgrounds for each heat step (low → high ratio).
- * Anchors match [heatmapper](https://github.com/masukomi/heatmapper)’s `github` scheme
- * (Alabaster → Spring Green → Green → Japanese Laurel → Camarone in `heatmap.scm`);
- * we interpolate those five colors to `HEATMAP_STEP_COUNT` steps.
+ * Foreground RGB for each heat step — the five `github` colors from heatmapper’s `color-schemes` in `heatmap.scm`
+ * (Alabaster, Spring Green, Green, Japanese Laurel, Camarone; low → high bucket).
  */
 export const HEATMAP_RGB: readonly [number, number, number][] = [
   [247, 247, 247],
-  [137, 251, 179],
-  [27, 254, 112],
-  [0, 242, 63],
-  [0, 224, 21],
-  [0, 197, 0],
-  [0, 162, 0],
-  [0, 131, 0],
-  [0, 113, 0],
+  [0, 255, 95],
+  [0, 215, 0],
+  [0, 135, 0],
   [0, 95, 0],
 ];
 
