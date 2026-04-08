@@ -2,6 +2,12 @@
 
 All notable changes to this project are documented in this file.
 
+## [1.1.4] — 2026-04-08
+
+### Fixed
+
+- **`habitxt --version`** now reads **`version` from `package.json`** at runtime (no duplicated string in source). This matches what npm shows and avoids a mismatch when the published bundle was built from stale sources.
+
 ## [1.1.3] — 2026-04-08
 
 ### Added

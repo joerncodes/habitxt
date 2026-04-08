@@ -1,4 +1,7 @@
 #!/usr/bin/env node
+import { readFileSync } from "fs";
+import { dirname, join } from "path";
+import { fileURLToPath } from "url";
 import { Command } from "commander";
 import { doCommand } from "./commands/do.js";
 import { showCommand } from "./commands/show.js";
@@ -12,7 +15,9 @@ import { editCommand } from "./commands/edit.js";
 import { todayCommand } from "./commands/today.js";
 
 const program = new Command();
-program.name("habitxt").description("Text-based habit tracker").version("1.1.3");
+const pkgPath = join(dirname(fileURLToPath(import.meta.url)), "..", "package.json");
+const { version } = JSON.parse(readFileSync(pkgPath, "utf8")) as { version: string };
+program.name("habitxt").description("Text-based habit tracker").version(version);
 
 doCommand(program);
 showCommand(program);
