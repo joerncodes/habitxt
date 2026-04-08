@@ -2,6 +2,14 @@
 
 All notable changes to this project are documented in this file.
 
+## [1.3.0] — 2026-04-08
+
+### Added
+
+- **`habitxt year`:** calendar-year **aggregate heatmap** for **all** open habits (same visibility as `month` / `today`). Each day is colored by how many habits are on track that day (boolean/numerical: streak-qualifying completions; negative: clean days). **Five** heat levels use the **`github`** RGB ramp from [heatmapper](https://github.com/masukomi/heatmapper) (`ratioToHeatmapStep`, `HEATMAP_RGB`); cells render as foreground-colored **`██`** blocks (no day digits). Months appear in **three columns** per row (quarters); layout is **smooshed** (no `cli-table3` borders).
+- **Week start:** config key **`weekStart`** in `habitxt.toml` / `~/.habitxt.toml` — **`sun`** (default) or **`mon`** — sets the first column of each week (`weekStartColumnIndex`). Documented in the README.
+- **`--category` / `-c`:** limit the heatmap to one frontmatter **`category`** (case-insensitive); use **`uncategorized`** or **`none`** for habits with no category (`normalizeHabitCategory`, `habitMatchesCategoryFilter`).
+
 ## [1.2.1] — 2026-04-08
 
 ### Fixed
