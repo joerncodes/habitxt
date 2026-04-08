@@ -1,6 +1,6 @@
 {
   "name": "habitxt",
-  "version": "1.1.4",
+  "version": "1.2.0",
   "description": "Text-based habit tracker — habits as plain Markdown files",
   "type": "module",
   "main": "./dist/index.js",
@@ -36,6 +36,7 @@
     "asciichart": "^1.5.25",
     "chalk": "^5.6.2",
     "chrono-node": "^2.9.0",
+    "cli-table3": "^0.6.5",
     "commander": "^14.0.3",
     "gray-matter": "^4.0.3",
     "smol-toml": "^1.6.1",

@@ -61,6 +61,7 @@ describe("loadTodayHabits", () => {
     expect(entries[0].negativeLastSlip).toBeUndefined();
     expect(entries[0].todayMarker).toBeUndefined();
     expect(entries[0].currentStreak).toBe(0);
+    expect(entries[0].longestStreak).toBe(0);
     expect(entries[0].category).toBeNull();
   });
 
@@ -101,6 +102,7 @@ describe("loadTodayHabits", () => {
     ]);
     const entries = loadTodayHabits(dir, "2026-04-07");
     expect(entries[0].currentStreak).toBe(3);
+    expect(entries[0].longestStreak).toBe(3);
   });
 
   it("skips archived habits", () => {
@@ -182,6 +184,7 @@ describe("loadTodayHabits", () => {
     expect(entries[0].isNumerical).toBe(false);
     expect(entries[0].negativeLastSlip).toBe("2026-04-01");
     expect(entries[0].currentStreak).toBe(6);
+    expect(entries[0].longestStreak).toBe(6);
   });
 
   it("negative habit with no slips reports never slipped", () => {
@@ -190,5 +193,6 @@ describe("loadTodayHabits", () => {
     expect(entries[0].isNegative).toBe(true);
     expect(entries[0].negativeLastSlip).toBeNull();
     expect(entries[0].currentStreak).toBe(0);
+    expect(entries[0].longestStreak).toBeNull();
   });
 });

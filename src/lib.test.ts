@@ -9,6 +9,7 @@ import {
   calcCurrentStreak,
   calcLongestStreak,
   calcNegativeStreak,
+  calcLongestNegativeCleanStreak,
   habitLabel,
   filterCompletionsForStreak,
   markerLevel,
@@ -401,6 +402,40 @@ describe("calcNegativeStreak", () => {
   it("ignores slips after today", () => {
     const map = new Map([["2026-05-01", "x"]]);
     expect(calcNegativeStreak(map, today)).toEqual({ days: 0, lastSlip: null });
+  });
+});
+
+// ---------------------------------------------------------------------------
+// calcLongestNegativeCleanStreak
+// ---------------------------------------------------------------------------
+
+describe("calcLongestNegativeCleanStreak", () => {
+  const today = new Date("2026-04-07T12:00:00");
+
+  it("returns null when there are no slips", () => {
+    expect(calcLongestNegativeCleanStreak(new Map(), today)).toBeNull();
+  });
+
+  it("returns clean days since the only slip when that beats inter-slip gaps", () => {
+    const map = new Map([["2026-04-01", "x"]]);
+    expect(calcLongestNegativeCleanStreak(map, today)).toBe(6);
+  });
+
+  it("takes the max of between-slip clean runs and the run after the last slip", () => {
+    const map = new Map([
+      ["2026-04-01", "x"],
+      ["2026-04-05", "x"],
+    ]);
+    // Apr 2–4 = 3 clean; after Apr 5 slip: Apr 6–7 = 2 clean
+    expect(calcLongestNegativeCleanStreak(map, today)).toBe(3);
+  });
+
+  it("ignores slips after today", () => {
+    const map = new Map([
+      ["2026-04-01", "x"],
+      ["2026-05-01", "x"],
+    ]);
+    expect(calcLongestNegativeCleanStreak(map, today)).toBe(6);
   });
 });
 

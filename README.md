@@ -80,6 +80,19 @@ sparkline (▁…█): **numerical** habits scale logged values (optional **`min
 **`max`** like `show`); **boolean** habits use three heights (none / partial /
 full); **negative** habits use low for clean days and high for slips.
 
+### streak
+
+List all **open** habits in a table with **habit**, **category** (or **—** if uncategorized),
+**current** streak, and **longest** streak.
+Default order is by current streak (highest first). Use **`--sort longest`** to
+rank by longest streak instead. Negative habits with no slips yet show **Never
+slipped** / **—** and sort above any finite value; otherwise streaks are **N
+days clean** (longest is the best run between slips and after the last slip, on
+recorded history).
+
+  habitxt streak
+  habitxt streak --sort longest
+
 ### today
 
 Open an interactive full-screen view for marking today's habits:

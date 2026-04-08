@@ -237,6 +237,26 @@ export function calcNegativeStreak(
   return { days, lastSlip };
 }
 
+/**
+ * Longest run of consecutive clean days (no slip) on or before `today`, from recorded slips.
+ * Returns `null` when there are no slips (never slipped — unbounded clean history).
+ */
+export function calcLongestNegativeCleanStreak(slips: Map<string, string>, today: Date): number | null {
+  const base = new Date(today);
+  base.setHours(0, 0, 0, 0);
+  const todayStr = isoLocal(base);
+  const sorted = [...slips.keys()].filter((d) => d <= todayStr).sort();
+  if (sorted.length === 0) return null;
+
+  let longest = 0;
+  for (let i = 0; i < sorted.length - 1; i++) {
+    const gap = utcDays(sorted[i + 1]!) - utcDays(sorted[i]!) - 1;
+    longest = Math.max(longest, gap);
+  }
+  const afterLast = utcDays(todayStr) - utcDays(sorted[sorted.length - 1]!);
+  return Math.max(longest, afterLast);
+}
+
 export interface Thresholds {
   partial: number | null;
   full: number | null;
@@ -394,6 +414,8 @@ export interface TodayEntry {
   /** Note for today’s completion line, if any. */
   todayNote: string | undefined;
   currentStreak: number;
+  /** Longest streak of qualifying days (boolean/numerical) or longest clean run (negative). `null` only when negative and never slipped. */
+  longestStreak: number | null;
 }
 
 /** Habits with status `archived` or `hidden` are omitted from `month` and `today`. */
@@ -427,6 +449,9 @@ export function loadTodayHabits(habitsDir: string, todayStr: string): TodayEntry
     const completions = parseCompletions(parsed.content);
     const streakCompletions = filterCompletionsForStreak(completions, thresholds.partial);
     const neg = isNegative ? calcNegativeStreak(streakCompletions, today) : null;
+    const longestStreak = isNegative
+      ? calcLongestNegativeCleanStreak(streakCompletions, today)
+      : calcLongestStreak(streakCompletions);
 
     const todayEntry = completions.get(todayStr);
     entries.push({
@@ -441,6 +466,7 @@ export function loadTodayHabits(habitsDir: string, todayStr: string): TodayEntry
       todayMarker:   todayEntry?.marker,
       todayNote:     todayEntry?.note,
       currentStreak: isNegative ? neg!.days : calcCurrentStreak(streakCompletions, today),
+      longestStreak,
     });
   }
 

@@ -2,6 +2,12 @@
 
 All notable changes to this project are documented in this file.
 
+## [1.2.0] — 2026-04-08
+
+### Added
+
+- **`habitxt streak`:** prints a leaderboard of **open** habits (not archived or hidden) with **habit**, **category**, **current**, and **longest** columns (Unicode table via **`cli-table3`**). Default sort is **current** descending; **`--sort longest`** ranks by longest streak. Uses the same streak rules as `show` / `today` (`loadTodayHabits`); **`TodayEntry.longestStreak`** is `calcLongestStreak` for boolean/numerical and **`calcLongestNegativeCleanStreak`** for negative (max clean run between slips and after the last slip; **`null`** / **—** when never slipped). **Negative** habits with no slips rank above any finite value when sorting by current or longest. Tie-breaker: habit name (A–Z).
+
 ## [1.1.4] — 2026-04-08
 
 ### Fixed

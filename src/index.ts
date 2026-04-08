@@ -13,6 +13,7 @@ import { archiveCommand } from "./commands/archive.js";
 import { hideCommand } from "./commands/hide.js";
 import { editCommand } from "./commands/edit.js";
 import { todayCommand } from "./commands/today.js";
+import { streakCommand } from "./commands/streak.js";
 
 const program = new Command();
 const pkgPath = join(dirname(fileURLToPath(import.meta.url)), "..", "package.json");
@@ -29,5 +30,6 @@ archiveCommand(program);
 hideCommand(program);
 editCommand(program);
 todayCommand(program);
+streakCommand(program);
 
 program.parse();
