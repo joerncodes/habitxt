@@ -2,6 +2,12 @@
 
 All notable changes to this project are documented in this file.
 
+## [1.2.1] — 2026-04-08
+
+### Fixed
+
+- **`bin` field:** use the single-string form (`"bin": "./dist/index.js"`) so npm keeps the executable link for **`habitxt`** on global install. Some npm versions treated the object form as invalid and dropped `bin` during publish. Added **`prepublishOnly`** so `dist/` is built before publish even if `prepare` is skipped.
+
 ## [1.2.0] — 2026-04-08
 
 ### Added
