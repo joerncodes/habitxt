@@ -111,8 +111,9 @@ category, with a live completion counter at the top. Key bindings:
   d             clear today's mark (or clear today's slip for negative habits)
   q / Escape    quit
 
-The header counts **on track today**: done/logged rows for boolean and numerical
-habits, and **clean** (no slip) rows for negative habits.
+The header counts **on track today**: any completion for boolean habits, **full**
+threshold (green tier) for numerical habits, and **clean** (no slip) rows for
+negative habits.
 
 For numerical habits, pressing Enter prompts for a value inline and
 shows the partial and full thresholds as a hint. Backspace edits the

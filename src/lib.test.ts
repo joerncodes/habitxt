@@ -29,11 +29,104 @@ import {
   mondayFirstColumnIndex,
   weekStartColumnIndex,
   habitOnTrackForHeatmap,
+  habitOnTrackForTodayView,
   buildYearDayCompletionCounts,
   ratioToHeatmapStep,
   HEATMAP_STEP_COUNT,
   HEATMAP_RGB,
+  type TodayEntry,
 } from "./lib.js";
+
+// ---------------------------------------------------------------------------
+// habitOnTrackForTodayView
+// ---------------------------------------------------------------------------
+
+describe("habitOnTrackForTodayView", () => {
+  it("counts boolean habit when today has a completion", () => {
+    const e: TodayEntry = {
+      name: "a",
+      filePath: "/a",
+      category: null,
+      isNumerical: false,
+      isNegative: false,
+      negativeLastSlip: undefined,
+      thresholds: { partial: null, full: null },
+      todayMarker: "x",
+      todayNote: undefined,
+      currentStreak: 1,
+      longestStreak: 1,
+    };
+    expect(habitOnTrackForTodayView(e)).toBe(true);
+  });
+
+  it("does not count numerical habit until full threshold is reached", () => {
+    const e: TodayEntry = {
+      name: "Steps",
+      filePath: "/s",
+      category: null,
+      isNumerical: true,
+      isNegative: false,
+      negativeLastSlip: undefined,
+      thresholds: { partial: 10_000, full: 20_000 },
+      todayMarker: "5000",
+      todayNote: undefined,
+      currentStreak: 0,
+      longestStreak: 1,
+    };
+    expect(habitOnTrackForTodayView(e)).toBe(false);
+  });
+
+  it("counts numerical habit when logged value meets full threshold", () => {
+    const e: TodayEntry = {
+      name: "Steps",
+      filePath: "/s",
+      category: null,
+      isNumerical: true,
+      isNegative: false,
+      negativeLastSlip: undefined,
+      thresholds: { partial: 10_000, full: 20_000 },
+      todayMarker: "20000",
+      todayNote: undefined,
+      currentStreak: 0,
+      longestStreak: 1,
+    };
+    expect(habitOnTrackForTodayView(e)).toBe(true);
+  });
+
+  it("does not count numerical habit without a numeric marker today", () => {
+    const e: TodayEntry = {
+      name: "Steps",
+      filePath: "/s",
+      category: null,
+      isNumerical: true,
+      isNegative: false,
+      negativeLastSlip: undefined,
+      thresholds: { partial: 10_000, full: 20_000 },
+      todayMarker: undefined,
+      todayNote: undefined,
+      currentStreak: 0,
+      longestStreak: 1,
+    };
+    expect(habitOnTrackForTodayView(e)).toBe(false);
+  });
+
+  it("counts negative habit when today has no slip", () => {
+    const e: TodayEntry = {
+      name: "n",
+      filePath: "/n",
+      category: null,
+      isNumerical: false,
+      isNegative: true,
+      negativeLastSlip: null,
+      thresholds: { partial: null, full: null },
+      todayMarker: undefined,
+      todayNote: undefined,
+      currentStreak: 0,
+      longestStreak: null,
+    };
+    expect(habitOnTrackForTodayView(e)).toBe(true);
+  });
+});
 
 // ---------------------------------------------------------------------------
 // habitShownInMonthAndToday

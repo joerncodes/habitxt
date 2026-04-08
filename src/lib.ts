@@ -418,6 +418,21 @@ export interface TodayEntry {
   longestStreak: number | null;
 }
 
+/**
+ * Whether a habit counts toward the `today` header and progress bar:
+ * boolean = any completion today; numerical = **full** tier (`markerLevel` === `"full"`);
+ * negative = clean (no slip today).
+ */
+export function habitOnTrackForTodayView(e: TodayEntry, symbols: Symbols = DEFAULT_SYMBOLS): boolean {
+  if (e.isNegative) {
+    return e.todayMarker === undefined;
+  }
+  if (e.isNumerical) {
+    return markerLevel(e.todayMarker, e.thresholds, symbols) === "full";
+  }
+  return e.todayMarker !== undefined;
+}
+
 /** Habits with status `archived` or `hidden` are omitted from `month` and `today`. */
 export function habitShownInMonthAndToday(status: unknown): boolean {
   return status !== "archived" && status !== "hidden";

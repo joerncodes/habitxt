@@ -17,6 +17,7 @@ import {
   calcNegativeStreak,
   completionMarkersOnly,
   TodayEntry,
+  habitOnTrackForTodayView,
 } from "../lib.js";
 
 /** Colored marker cell for non-selected rows. */
@@ -55,6 +56,15 @@ function extraText(entry: TodayEntry): string {
   return "";
 }
 
+/** Visual bar for how many listed habits are on track today (same filter as the tally). */
+function todayProgressBar(onTrack: number, total: number, width: number): string {
+  if (total <= 0 || width <= 0) return "";
+  const filled = onTrack >= total ? width : Math.floor((onTrack / total) * width);
+  const empty = width - filled;
+  if (onTrack === total) return chalk.green("█".repeat(width));
+  return chalk.green("█".repeat(filled)) + chalk.dim("░".repeat(empty));
+}
+
 export function todayCommand(program: Command) {
   program
     .command("today")
@@ -86,12 +96,14 @@ export function todayCommand(program: Command) {
       const render = () => {
         // Always hide cursor first; re-show at end if in input mode.
         process.stdout.write("\x1b[2J\x1b[H\x1b[?25l");
-        process.stdout.write(chalk.bold(`Today — ${dayLabel}\n`));
+        process.stdout.write(chalk.bold(`Today — ${dayLabel}\n\n`));
 
-        const onTrack = entries.filter((e) =>
-          e.isNegative ? e.todayMarker === undefined : e.todayMarker !== undefined
-        ).length;
+        const onTrack = entries.filter((e) => habitOnTrackForTodayView(e, CONFIG.symbols)).length;
         const total = entries.length;
+        const cols = process.stdout.columns ?? 80;
+        const inner = Math.max(1, cols - 4);
+        const barWidth = Math.min(inner, 100);
+        process.stdout.write(todayProgressBar(onTrack, total, barWidth) + "\n");
         const tally = onTrack === total ? chalk.green(`${onTrack}/${total}`) : `${onTrack}/${total}`;
         process.stdout.write(`${tally}${chalk.dim(" on track today")}\n\n`);
 

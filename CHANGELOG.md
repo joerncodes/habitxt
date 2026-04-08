@@ -2,6 +2,16 @@
 
 All notable changes to this project are documented in this file.
 
+## [1.3.1] — 2026-04-08
+
+### Added
+
+- **`habitxt today`:** **progress bar** under the date header showing share of habits **on track** today (width follows terminal columns, capped at 100 characters).
+
+### Changed
+
+- **Today header / bar:** **`habitOnTrackForTodayView`** (`lib.ts`) drives the tally and bar. **Numerical** habits count only when the logged value reaches the **full** threshold (same **green** tier as `markerLevel`); boolean and negative rules unchanged. README updated.
+
 ## [1.3.0] — 2026-04-08
 
 ### Added
