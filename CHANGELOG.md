@@ -10,6 +10,8 @@ All notable changes to this project are documented in this file.
 
 - **Completion notes:** optional text after the ISO date on a completion line (`- [x] 2026-04-08 my note`). `habitxt do` accepts `-n` / `--note`. `show` prints a **Notes** section for the last-10-day window; `today` shows a truncated note in the row and preserves notes when toggling the same day. Parsing uses `parseCompletionLine` / `CompletionEntry` (`marker` + optional `note`); `applyCompletion` can update note-only entries.
 
+- **Numerical chart axis:** optional frontmatter **`min`** and **`max`** anchor the y-axis for the ASCII value chart in `show` (merged with data extrema by `asciichart`). `habit create` asks optional chart min/max after thresholds. Library helper `parseNumericChartAxis`.
+
 ## [1.1.2] — 2026-04-08
 
 ### Added

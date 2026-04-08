@@ -241,6 +241,36 @@ export interface Thresholds {
   full: number | null;
 }
 
+/** Optional `min` / `max` in frontmatter for numerical habits — anchors the ASCII chart y-axis (asciichart merges with data extrema). */
+export interface NumericChartAxis {
+  min?: number;
+  max?: number;
+}
+
+/**
+ * Reads optional `min` / `max` for `type: numerical` habits. Returns `undefined` if absent, invalid, or non-numerical type.
+ */
+export function parseNumericChartAxis(data: Record<string, unknown>): NumericChartAxis | undefined {
+  if (data.type !== "numerical") return undefined;
+  const rawMin = data.min;
+  const rawMax = data.max;
+  const hasMin = rawMin !== undefined && rawMin !== null;
+  const hasMax = rawMax !== undefined && rawMax !== null;
+  if (!hasMin && !hasMax) return undefined;
+
+  const min = hasMin ? Number(rawMin) : undefined;
+  const max = hasMax ? Number(rawMax) : undefined;
+
+  if (hasMin && !Number.isFinite(min!)) return undefined;
+  if (hasMax && !Number.isFinite(max!)) return undefined;
+  if (min !== undefined && max !== undefined && min >= max) return undefined;
+
+  const out: NumericChartAxis = {};
+  if (min !== undefined) out.min = min;
+  if (max !== undefined) out.max = max;
+  return out;
+}
+
 /** Filters out completions that don't meet the partial threshold (for streak calculation). */
 export function filterCompletionsForStreak(
   completions: Map<string, CompletionEntry>,

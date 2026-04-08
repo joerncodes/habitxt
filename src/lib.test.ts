@@ -16,6 +16,7 @@ import {
   resolveDoDate,
   habitShownInMonthAndToday,
   completionMarkersOnly,
+  parseNumericChartAxis,
 } from "./lib.js";
 
 // ---------------------------------------------------------------------------
@@ -31,6 +32,41 @@ describe("habitShownInMonthAndToday", () => {
   it("is false for archived and hidden", () => {
     expect(habitShownInMonthAndToday("archived")).toBe(false);
     expect(habitShownInMonthAndToday("hidden")).toBe(false);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// parseNumericChartAxis
+// ---------------------------------------------------------------------------
+
+describe("parseNumericChartAxis", () => {
+  it("returns undefined for non-numerical type", () => {
+    expect(parseNumericChartAxis({ type: "negative" })).toBeUndefined();
+  });
+
+  it("returns undefined when no min/max", () => {
+    expect(parseNumericChartAxis({ type: "numerical", partial: 0, full: 100 })).toBeUndefined();
+  });
+
+  it("parses min only", () => {
+    expect(parseNumericChartAxis({ type: "numerical", min: 0 })).toEqual({ min: 0 });
+  });
+
+  it("parses max only", () => {
+    expect(parseNumericChartAxis({ type: "numerical", max: 10000 })).toEqual({ max: 10000 });
+  });
+
+  it("parses both", () => {
+    expect(parseNumericChartAxis({ type: "numerical", min: 0, max: 10000 })).toEqual({ min: 0, max: 10000 });
+  });
+
+  it("returns undefined when min >= max", () => {
+    expect(parseNumericChartAxis({ type: "numerical", min: 10, max: 10 })).toBeUndefined();
+    expect(parseNumericChartAxis({ type: "numerical", min: 10, max: 5 })).toBeUndefined();
+  });
+
+  it("returns undefined for non-finite numbers", () => {
+    expect(parseNumericChartAxis({ type: "numerical", min: NaN })).toBeUndefined();
   });
 });
 

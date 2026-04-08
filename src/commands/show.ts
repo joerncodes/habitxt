@@ -18,6 +18,7 @@ import {
   Thresholds,
   CONFIG,
   completionMarkersOnly,
+  parseNumericChartAxis,
 } from "../lib.js";
 
 export function showCommand(program: Command) {
@@ -90,13 +91,30 @@ export function showCommand(program: Command) {
       console.log();
       if (isNumerical) {
         const values = numericValuesForDays(completions, days);
+        const axis = parseNumericChartAxis(parsed.data as Record<string, unknown>);
+        const rawMin = parsed.data.min;
+        const rawMax = parsed.data.max;
+        const hasAxisKeys =
+          (rawMin !== undefined && rawMin !== null) || (rawMax !== undefined && rawMax !== null);
+        if (hasAxisKeys && !axis) {
+          console.warn(
+            "habitxt show: ignoring invalid min/max (use finite numbers; if both are set, min must be less than max).",
+          );
+        }
+        const plotOpts: { height: number; min?: number; max?: number } = { height: 6 };
+        if (axis?.min !== undefined) plotOpts.min = axis.min;
+        if (axis?.max !== undefined) plotOpts.max = axis.max;
         console.log(chalk.bold("Value (last 10 days)"));
-        console.log(asciichart.plot(values, { height: 6 }));
-        console.log(
-          chalk.dim(
-            "day of month →  " + days.map((d) => d.getDate()).join(" "),
-          ),
-        );
+        console.log(asciichart.plot(values, plotOpts));
+        const dimLines = [
+          chalk.dim("day of month →  " + days.map((d) => d.getDate()).join(" ")),
+        ];
+        if (axis && (axis.min !== undefined || axis.max !== undefined)) {
+          const lo = axis.min !== undefined ? String(axis.min) : "auto";
+          const hi = axis.max !== undefined ? String(axis.max) : "auto";
+          dimLines.push(chalk.dim(`y-axis →  ${lo} … ${hi}`));
+        }
+        console.log(dimLines.join("\n"));
         console.log();
       }
 

@@ -99,6 +99,33 @@ export function createCommand(program: Command) {
         data.type = "numerical";
         data.partial = partial;
         data.full = full;
+
+        const minStr = await input({
+          message: "Chart y-axis min (optional, blank = auto from data):",
+        });
+        const maxStr = await input({
+          message: "Chart y-axis max (optional, blank = auto from data):",
+        });
+        const minTrim = minStr.trim();
+        const maxTrim = maxStr.trim();
+        if (minTrim || maxTrim) {
+          const minN = minTrim ? Number(minTrim) : undefined;
+          const maxN = maxTrim ? Number(maxTrim) : undefined;
+          if (minTrim && !Number.isFinite(minN!)) {
+            console.error("Chart min must be a number.");
+            process.exit(1);
+          }
+          if (maxTrim && !Number.isFinite(maxN!)) {
+            console.error("Chart max must be a number.");
+            process.exit(1);
+          }
+          if (minN !== undefined && maxN !== undefined && minN >= maxN) {
+            console.error("Chart min must be less than max.");
+            process.exit(1);
+          }
+          if (minN !== undefined) data.min = minN;
+          if (maxN !== undefined) data.max = maxN;
+        }
       }
 
       fs.mkdirSync(HABITS_DIR, { recursive: true });

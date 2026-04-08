@@ -212,6 +212,8 @@ the marker for the same day.
   type         "numerical" for numeric habits, "negative" for avoid-habits (slips)
   partial      Numerical threshold for partial credit (yellow)
   full         Numerical threshold for full credit (green)
+  min          Optional chart y-axis floor for numerical habits (`habitxt show` ASCII chart)
+  max          Optional chart y-axis ceiling for numerical habits
 
 Example:
 
@@ -236,10 +238,17 @@ Declare thresholds in frontmatter to get color coding in `month` and `show`:
   type: numerical
   partial: 5000
   full: 10000
+  min: 0
+  max: 15000
   ---
 
 Values are displayed in the month grid — single digits centered, two-digit
 values right-aligned, values >= 100 shown as "99+".
+
+Optional **`min`** and **`max`** in frontmatter anchor the y-axis of the
+last-10-day value chart in `show` (the chart library still expands the range
+to include your logged values, so outliers remain visible). Omit both for an
+axis derived only from the data.
 
 ### Negative habits
 
