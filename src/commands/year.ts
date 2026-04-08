@@ -3,6 +3,8 @@ import * as fs from "fs";
 import * as path from "path";
 import matter from "gray-matter";
 import chalk from "chalk";
+import stringWidth from "string-width";
+import Table from "cli-table3";
 import {
   HABITS_DIR,
   parseCompletions,
@@ -16,10 +18,7 @@ import {
 } from "../lib.js";
 
 const HEAT_PAD = "    ";
-/** Seven weekday columns × 2-character day cells */
-const MONTH_WIDTH = 14;
 const BETWEEN_MONTHS = "  ";
-const DOW_HEADER = ["M", "T", "W", "T", "F", "S", "S"].map((c) => c.padStart(2, " ")).join("");
 
 /**
  * We render a real calendar (month grid, Monday-first) in-process. [heatmapper](https://github.com/masukomi/heatmapper)
@@ -56,8 +55,8 @@ function buildMonthWeeks(year: number, month: number): (number | null)[][] {
   return weeks;
 }
 
-function renderWeekLine(
-  week: (number | null)[],
+function formatDayCell(
+  day: number | null,
   year: number,
   month: number,
   counts: Map<string, number>,
@@ -65,20 +64,49 @@ function renderWeekLine(
   todayStr: string,
   todayYear: number,
 ): string {
-  let line = "";
-  for (let col = 0; col < 7; col++) {
-    const day = week[col];
-    if (day === null) {
-      line += chalk.dim("  ");
-      continue;
-    }
-    const iso = `${year}-${String(month + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
-    const completed = counts.get(iso) ?? 0;
-    const isFuture = year > todayYear || (year === todayYear && iso > todayStr);
-      const cell = String(day).padStart(2, "0");
-    line += paintDay(completed, totalHabits, isFuture, cell);
+  if (day === null) return chalk.dim("  ");
+  const iso = `${year}-${String(month + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+  const completed = counts.get(iso) ?? 0;
+  const isFuture = year > todayYear || (year === todayYear && iso > todayStr);
+  const cell = String(day).padStart(2, "0");
+  return paintDay(completed, totalHabits, isFuture, cell);
+}
+
+function padVisualEnd(s: string, width: number): string {
+  const w = stringWidth(s);
+  if (w >= width) return s;
+  return s + " ".repeat(width - w);
+}
+
+function monthTableLines(
+  year: number,
+  month: number,
+  counts: Map<string, number>,
+  totalHabits: number,
+  todayStr: string,
+  todayYear: number,
+  padWeeks: number,
+): string[] {
+  const weeks = buildMonthWeeks(year, month);
+  while (weeks.length < padWeeks) {
+    weeks.push([null, null, null, null, null, null, null]);
   }
-  return line;
+
+  const table = new Table({
+    head: ["M", "T", "W", "T", "F", "S", "S"],
+    style: {
+      border: ["dim", "dim", "dim", "dim"],
+      head: ["dim"],
+    },
+  });
+
+  for (const week of weeks) {
+    table.push(
+      week.map((day) => formatDayCell(day, year, month, counts, totalHabits, todayStr, todayYear)),
+    );
+  }
+
+  return table.toString().split("\n");
 }
 
 function renderMonthTriple(
@@ -93,27 +121,24 @@ function renderMonthTriple(
     new Date(year, m, 1).toLocaleDateString("en-US", { month: "short" }),
   );
   const weekGrids = months.map((m) => buildMonthWeeks(year, m));
-  const maxWeeks = Math.max(...weekGrids.map((w) => w.length));
+  const padWeeks = Math.max(...weekGrids.map((w) => w.length));
 
-  console.log(
-    HEAT_PAD +
-      titles
-        .map((t) => chalk.bold(t.padEnd(MONTH_WIDTH)))
-        .join(BETWEEN_MONTHS),
+  const lineSets = months.map((m) =>
+    monthTableLines(year, m, counts, totalHabits, todayStr, todayYear, padWeeks),
   );
-  console.log(
-    HEAT_PAD +
-      months.map(() => chalk.dim(DOW_HEADER.padEnd(MONTH_WIDTH))).join(BETWEEN_MONTHS),
-  );
+  const maxLines = Math.max(...lineSets.map((l) => l.length));
 
-  for (let w = 0; w < maxWeeks; w++) {
-    const parts = months.map((month, i) => {
-      const grid = weekGrids[i]!;
-      if (w < grid.length) {
-        return renderWeekLine(grid[w]!, year, month, counts, totalHabits, todayStr, todayYear);
-      }
-      return chalk.dim(" ".repeat(MONTH_WIDTH));
-    });
+  const colWidths = lineSets.map((lines) => Math.max(...lines.map((ln) => stringWidth(ln)), 0));
+
+  const titleLine =
+    HEAT_PAD +
+    titles
+      .map((t, i) => chalk.bold(padVisualEnd(t, colWidths[i] ?? 0)))
+      .join(BETWEEN_MONTHS);
+  console.log(titleLine);
+
+  for (let row = 0; row < maxLines; row++) {
+    const parts = lineSets.map((lines, i) => padVisualEnd(lines[row] ?? "", colWidths[i] ?? 0));
     console.log(HEAT_PAD + parts.join(BETWEEN_MONTHS));
   }
 }
