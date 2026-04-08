@@ -101,6 +101,14 @@ describe("loadTodayHabits", () => {
     expect(entries[0].name).toBe("Active");
   });
 
+  it("skips hidden habits", () => {
+    writeHabit(dir, "Quiet.md", { name: "Quiet", status: "hidden" });
+    writeHabit(dir, "Active.md", { name: "Active" });
+    const entries = loadTodayHabits(dir, "2026-04-07");
+    expect(entries).toHaveLength(1);
+    expect(entries[0].name).toBe("Active");
+  });
+
   it("reads isNumerical and thresholds from numerical habit", () => {
     writeHabit(dir, "Steps.md", {
       name:    "Steps",

@@ -2,6 +2,14 @@
 
 All notable changes to this project are documented in this file.
 
+## [1.1.2] — 2026-04-08
+
+### Added
+
+- **Hidden habits** (`status: hidden`): omitted from `month` and `today` like archived habits, but still completable via `do` and visible in `show`. Completing a hidden habit does **not** clear `hidden` (unlike `archived`, which `do` removes when you log a completion).
+- `habitxt hide <habit>` and `habitxt unhide <habit>` to set or clear hidden status.
+- Library helper `habitShownInMonthAndToday` for the month/today visibility rule.
+
 ## [1.1.1] — 2026-04-07
 
 ### Added

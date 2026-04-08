@@ -38,9 +38,11 @@ Mark a habit complete for today (or a specific date):
   habitxt do Steps 8500 2026-04-01        # numerical + specific date
   habitxt do "No Alcohol"                 # negative habit: records a slip
 
-Running `do` on an archived habit automatically unarchives it. For **negative**
-habits, `do` records a slip (same file format as a completion); messaging
-refers to slips instead of “done”.
+Running `do` on an **archived** habit automatically unarchives it. **`do` does
+not** clear **hidden** status — hidden habits stay out of `month` and `today`
+until you run `unhide` or edit frontmatter. For **negative** habits, `do`
+records a slip (same file format as a completion); messaging refers to slips
+instead of “done”.
 
 ### show
 
@@ -57,7 +59,8 @@ negative habits you get **current** clean streak only (**Never slipped** or
 
 ### month
 
-Show a full monthly calendar grid for all habits:
+Show a full monthly calendar grid for all habits that are **open** (not
+archived or hidden):
 
   habitxt month               # current month
   habitxt month -m 2026-03    # specific month
@@ -76,8 +79,8 @@ Open an interactive full-screen view for marking today's habits:
 
   habitxt today
 
-Displays all non-archived habits grouped by category, with a live
-completion counter at the top. Key bindings:
+Displays all habits that are **open** (not archived or hidden), grouped by
+category, with a live completion counter at the top. Key bindings:
 
   ↑ / k         move up
   ↓ / j         move down
@@ -104,12 +107,25 @@ Uses $EDITOR, falling back to $VISUAL, then vi.
 
 ### archive
 
-Hide a habit from the month view without deleting it:
+Archive a habit so it no longer appears in `month` or `today`:
 
   habitxt archive Meditate
 
-Archived habits are skipped in `month`. Completing an archived habit
-with `do` will automatically unarchive it.
+Archived habits are skipped in those views. Completing an archived habit with
+`do` automatically unarchives it.
+
+### hide / unhide
+
+Hide a habit from `month` and `today` without deleting it — it remains in your
+habits folder and you can still log completions:
+
+  habitxt hide Meditate
+  habitxt unhide Meditate
+
+Hidden habits are skipped in `month` and `today`. Unlike archived habits,
+completing a hidden habit with **`do` does not** bring it back into those
+views; use `unhide` (or edit `status` in frontmatter) when you want it listed
+again.
 
 ### completions
 
@@ -120,7 +136,8 @@ Print a shell completion script to stdout:
   habitxt completions --shell fish
 
 See the output header for one-time install instructions per shell.
-After setup, pressing Tab completes habit names for do, show, archive, and edit.
+After setup, pressing Tab completes habit names for `do`, `show`, `archive`,
+`hide`, and `unhide` in the generated scripts (see the script for your shell).
 
 ## Configuration
 
@@ -175,7 +192,7 @@ to record a partial completion. Both completion levels count toward streaks.
   icon         Emoji shown next to the name in `month` and `show`
   category     Groups habits under a heading in `month`
   aliases      List of short names accepted by all commands
-  status       Set to "archived" by the archive command
+  status       "archived" (via `archive`) or "hidden" (via `hide`); omit or remove for open
   type         "numerical" for numeric habits, "negative" for avoid-habits (slips)
   partial      Numerical threshold for partial credit (yellow)
   full         Numerical threshold for full credit (green)

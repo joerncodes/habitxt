@@ -225,10 +225,15 @@ export interface TodayEntry {
   currentStreak: number;
 }
 
+/** Habits with status `archived` or `hidden` are omitted from `month` and `today`. */
+export function habitShownInMonthAndToday(status: unknown): boolean {
+  return status !== "archived" && status !== "hidden";
+}
+
 /**
- * Loads all non-archived habits and returns them as TodayEntry[], sorted by
- * category (alphabetically, uncategorized last), preserving file order within
- * each category.
+ * Loads habits that appear in `today` (open habits only — not archived or hidden)
+ * and returns them as TodayEntry[], sorted by category (alphabetically,
+ * uncategorized last), preserving file order within each category.
  */
 export function loadTodayHabits(habitsDir: string, todayStr: string): TodayEntry[] {
   if (!fs.existsSync(habitsDir)) return [];
@@ -240,7 +245,7 @@ export function loadTodayHabits(habitsDir: string, todayStr: string): TodayEntry
     const filePath = path.join(habitsDir, file);
     const raw = fs.readFileSync(filePath, "utf8");
     const parsed = matter(raw);
-    if (parsed.data.status === "archived") continue;
+    if (!habitShownInMonthAndToday(parsed.data.status)) continue;
 
     const isNegative = parsed.data.type === "negative";
     const isNumerical = !isNegative && parsed.data.type === "numerical";

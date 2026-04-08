@@ -3,7 +3,19 @@ import * as fs from "fs";
 import * as path from "path";
 import matter from "gray-matter";
 import chalk from "chalk";
-import { HABITS_DIR, CONFIG, parseCompletions, center, habitLabel, stringWidth, markerLevel, Thresholds, Symbols, DEFAULT_SYMBOLS } from "../lib.js";
+import {
+  HABITS_DIR,
+  CONFIG,
+  parseCompletions,
+  center,
+  habitLabel,
+  stringWidth,
+  markerLevel,
+  Thresholds,
+  Symbols,
+  DEFAULT_SYMBOLS,
+  habitShownInMonthAndToday,
+} from "../lib.js";
 
 export const DOW = ["S", "M", "T", "W", "T", "F", "S"];
 export const MONTH_COL = 3;
@@ -137,7 +149,7 @@ export function monthCommand(program: Command) {
       const habits: HabitRow[] = files.flatMap((file) => {
         const raw = fs.readFileSync(path.join(HABITS_DIR, file), "utf8");
         const parsed = matter(raw);
-        if (parsed.data.status === "archived") return [];
+        if (!habitShownInMonthAndToday(parsed.data.status)) return [];
         const isNegative = parsed.data.type === "negative";
         const isNumerical = !isNegative && parsed.data.type === "numerical";
         return [{

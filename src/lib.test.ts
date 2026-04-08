@@ -11,7 +11,24 @@ import {
   markerLevel,
   numericValuesForDays,
   resolveDoDate,
+  habitShownInMonthAndToday,
 } from "./lib.js";
+
+// ---------------------------------------------------------------------------
+// habitShownInMonthAndToday
+// ---------------------------------------------------------------------------
+
+describe("habitShownInMonthAndToday", () => {
+  it("is true for open / missing status", () => {
+    expect(habitShownInMonthAndToday(undefined)).toBe(true);
+    expect(habitShownInMonthAndToday("open")).toBe(true);
+  });
+
+  it("is false for archived and hidden", () => {
+    expect(habitShownInMonthAndToday("archived")).toBe(false);
+    expect(habitShownInMonthAndToday("hidden")).toBe(false);
+  });
+});
 
 // ---------------------------------------------------------------------------
 // resolveDoDate
