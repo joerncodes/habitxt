@@ -19,25 +19,25 @@ import {
 
 const HEAT_PAD = "    ";
 const BETWEEN_MONTHS = "  ";
+/** Two full blocks per cell — same visual width as before; color is foreground only (like heatmapper’s `██`). */
+const HEAT_BLOCK = "██";
 
 /**
  * We render a real calendar (month grid, Monday-first) in-process. [heatmapper](https://github.com/masukomi/heatmapper)
  * fills a fixed-width column grid from piped data; it doesn’t lay out months, and would require a separate Chicken Scheme binary.
  */
 
-function paintHeatStep(step: number, twoChars: string): string {
+function paintHeatStep(step: number): string {
   const [r, g, b] = HEATMAP_RGB[step]!;
-  const lum = 0.299 * r + 0.587 * g + 0.114 * b;
-  const fg = lum > 145 ? chalk.black : chalk.white;
-  return chalk.bgRgb(r, g, b)(fg(twoChars));
+  return chalk.rgb(r, g, b)(HEAT_BLOCK);
 }
 
-function paintDay(completed: number, total: number, isFuture: boolean, twoChars: string): string {
-  if (isFuture) return chalk.dim(twoChars);
-  if (total === 0) return twoChars;
+function paintDay(completed: number, total: number, isFuture: boolean): string {
+  if (isFuture) return chalk.dim(HEAT_BLOCK);
+  if (total === 0) return "  ";
   const step = ratioToHeatmapStep(completed, total);
-  if (step === null) return chalk.dim(twoChars);
-  return paintHeatStep(step, twoChars);
+  if (step === null) return chalk.dim(HEAT_BLOCK);
+  return paintHeatStep(step);
 }
 
 function buildMonthWeeks(year: number, month: number): (number | null)[][] {
@@ -68,8 +68,7 @@ function formatDayCell(
   const iso = `${year}-${String(month + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
   const completed = counts.get(iso) ?? 0;
   const isFuture = year > todayYear || (year === todayYear && iso > todayStr);
-  const cell = String(day).padStart(2, "0");
-  return paintDay(completed, totalHabits, isFuture, cell);
+  return paintDay(completed, totalHabits, isFuture);
 }
 
 function padVisualEnd(s: string, width: number): string {
@@ -201,7 +200,7 @@ export function yearCommand(program: Command) {
       console.log(chalk.bold(`${year} — ${total} habit${total === 1 ? "" : "s"}`));
       console.log(
         chalk.dim(
-          "10 heat levels by share of habits on track (dark red → green); dim = none on track or future",
+          "10 block colors (light gray → greens, heatmapper “github” palette); dim blocks = none on track or future",
         ),
       );
       console.log();

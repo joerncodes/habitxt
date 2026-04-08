@@ -482,18 +482,23 @@ export function ratioToHeatmapStep(completed: number, total: number): number | n
   return Math.min(HEATMAP_STEP_COUNT - 1, Math.floor((completed / total) * HEATMAP_STEP_COUNT));
 }
 
-/** RGB background for each heat step (low → high ratio). */
+/**
+ * RGB backgrounds for each heat step (low → high ratio).
+ * Anchors match [heatmapper](https://github.com/masukomi/heatmapper)’s `github` scheme
+ * (Alabaster → Spring Green → Green → Japanese Laurel → Camarone in `heatmap.scm`);
+ * we interpolate those five colors to `HEATMAP_STEP_COUNT` steps.
+ */
 export const HEATMAP_RGB: readonly [number, number, number][] = [
-  [84, 22, 28],
-  [118, 28, 22],
-  [152, 48, 22],
-  [186, 78, 26],
-  [206, 118, 36],
-  [198, 162, 52],
-  [142, 176, 78],
-  [86, 158, 96],
-  [44, 130, 98],
-  [26, 102, 74],
+  [247, 247, 247],
+  [137, 251, 179],
+  [27, 254, 112],
+  [0, 242, 63],
+  [0, 224, 21],
+  [0, 197, 0],
+  [0, 162, 0],
+  [0, 131, 0],
+  [0, 113, 0],
+  [0, 95, 0],
 ];
 
 /**
