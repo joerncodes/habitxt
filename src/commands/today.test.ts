@@ -68,6 +68,16 @@ describe("loadTodayHabits", () => {
     writeHabit(dir, "Meditate.md", { name: "Meditate" }, ["x 2026-04-07"]);
     const entries = loadTodayHabits(dir, "2026-04-07");
     expect(entries[0].todayMarker).toBe("x");
+    expect(entries[0].todayNote).toBeUndefined();
+  });
+
+  it("reads today's note when present on the line", () => {
+    const fm = ["---", "name: Meditate", "---", ""].join("\n");
+    const body = "- [x] 2026-04-07 quick journal entry\n";
+    fs.writeFileSync(path.join(dir, "Meditate.md"), fm + body);
+    const entries = loadTodayHabits(dir, "2026-04-07");
+    expect(entries[0].todayMarker).toBe("x");
+    expect(entries[0].todayNote).toBe("quick journal entry");
   });
 
   it("reads partial marker correctly", () => {

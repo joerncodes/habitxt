@@ -15,6 +15,7 @@ import {
   filterCompletionsForStreak,
   calcCurrentStreak,
   calcNegativeStreak,
+  completionMarkersOnly,
   TodayEntry,
 } from "../lib.js";
 
@@ -39,13 +40,18 @@ function plainCell(entry: TodayEntry): string {
 }
 
 function extraText(entry: TodayEntry): string {
-  if (entry.isNumerical && entry.todayMarker) return `${entry.todayMarker} recorded`;
+  const noteSuffix = entry.todayNote
+    ? chalk.dim(` · ${entry.todayNote.length > 36 ? `${entry.todayNote.slice(0, 33)}…` : entry.todayNote}`)
+    : "";
+
+  if (entry.isNumerical && entry.todayMarker) return `${entry.todayMarker} recorded${noteSuffix}`;
   if (entry.isNegative) {
-    if (entry.negativeLastSlip === null) return "Never slipped";
-    if (entry.currentStreak > 0) return `${entry.currentStreak} days clean`;
-    return "";
+    if (entry.negativeLastSlip === null) return `Never slipped${noteSuffix}`;
+    if (entry.currentStreak > 0) return `${entry.currentStreak} days clean${noteSuffix}`;
+    return entry.todayNote ? chalk.dim(entry.todayNote.length > 40 ? `${entry.todayNote.slice(0, 37)}…` : entry.todayNote) : "";
   }
-  if (!entry.isNumerical && entry.currentStreak > 0) return `streak: ${entry.currentStreak}`;
+  if (!entry.isNumerical && entry.currentStreak > 0) return `streak: ${entry.currentStreak}${noteSuffix}`;
+  if (entry.todayNote) return String(noteSuffix).trimStart();
   return "";
 }
 
@@ -70,8 +76,8 @@ export function todayCommand(program: Command) {
       const labelColWidth = Math.max(...entries.map((e) => habitLabel(e.name, e.icon).width), 16);
       let selected = 0;
 
-      // Input mode state — only active when entering a number for a numerical habit.
-      let inputMode = false;
+      /** `numeric` = entering a value; `note` = `n` opens note entry for today. */
+      let inputMode: false | "numeric" | "note" = false;
       let inputBuffer = "";
 
       // -----------------------------------------------------------------
@@ -115,7 +121,7 @@ export function todayCommand(program: Command) {
 
         process.stdout.write("\n");
 
-        if (inputMode) {
+        if (inputMode === "numeric") {
           const entry = entries[selected];
           const hints: string[] = [];
           if (entry.thresholds.partial !== null) hints.push(`partial: ${entry.thresholds.partial}`);
@@ -123,9 +129,14 @@ export function todayCommand(program: Command) {
           const hintStr = hints.length > 0 ? chalk.dim(`  (${hints.join(", ")})`) : "";
           process.stdout.write(`  ${entry.name}${hintStr}: ${inputBuffer}`);
           process.stdout.write("\x1b[?25h"); // show cursor at input position
+        } else if (inputMode === "note") {
+          process.stdout.write(chalk.dim("  Note (Enter save · Esc cancel): ") + inputBuffer);
+          process.stdout.write("\x1b[?25h");
         } else {
           process.stdout.write(
-            chalk.dim("↑↓/jk navigate · Enter toggle · / partial · d clear today · q quit") + "\n",
+            chalk.dim(
+              "↑↓/jk navigate · Enter toggle · n note · / partial · d clear today · q quit",
+            ) + "\n",
           );
         }
       };
@@ -136,23 +147,26 @@ export function todayCommand(program: Command) {
       const today = new Date(todayStr + "T00:00:00");
 
       /** Recompute streak and update the selected entry in-place. */
-      const updateEntry = (newBodyContent: string, newMarker: string | undefined) => {
+      const updateEntry = (newBodyContent: string) => {
         const entry       = entries[selected];
         const completions = parseCompletions(newBodyContent);
+        const todayData   = completions.get(todayStr);
         if (entry.isNegative) {
-          const neg = calcNegativeStreak(completions, today);
+          const neg = calcNegativeStreak(completionMarkersOnly(completions), today);
           entries[selected] = {
             ...entry,
-            todayMarker:      newMarker,
-            currentStreak:      neg.days,
-            negativeLastSlip:   neg.lastSlip,
+            todayMarker:      todayData?.marker,
+            todayNote:        todayData?.note,
+            currentStreak:    neg.days,
+            negativeLastSlip: neg.lastSlip,
           };
           return;
         }
         const streakCompletions = filterCompletionsForStreak(completions, entry.thresholds.partial);
         entries[selected] = {
           ...entry,
-          todayMarker:   newMarker,
+          todayMarker:   todayData?.marker,
+          todayNote:     todayData?.note,
           currentStreak: calcCurrentStreak(streakCompletions, today),
         };
       };
@@ -169,10 +183,37 @@ export function todayCommand(program: Command) {
           ? removeCompletion(parsed.content, todayStr)
           : parsed.content;
 
-        const result = applyCompletion(stripped, todayStr, marker);
+        const preservedNote = entry.todayNote;
+        const result = applyCompletion(stripped, todayStr, marker, CONFIG.symbols, preservedNote);
         if (result.type === "added" || result.type === "upgraded") {
           fs.writeFileSync(entry.filePath, matter.stringify(result.content, parsed.data));
-          updateEntry(result.content, marker);
+          updateEntry(result.content);
+        }
+      };
+
+      /**
+       * Set or update today's note. With no completion yet, records done (boolean) or a slip (negative).
+       * Empty text with an existing completion clears the note; empty with no completion is a no-op.
+       */
+      const applyTodayNote = (noteText: string) => {
+        const entry = entries[selected];
+        const trimmed = noteText.trim();
+        if (entry.todayMarker === undefined && trimmed === "") return;
+
+        const raw    = fs.readFileSync(entry.filePath, "utf8");
+        const parsed = matter(raw);
+        const stripped = entry.todayMarker !== undefined
+          ? removeCompletion(parsed.content, todayStr)
+          : parsed.content;
+
+        const marker = entry.todayMarker ?? CONFIG.symbols.done;
+        const noteArg: string | undefined =
+          entry.todayMarker !== undefined && trimmed === "" ? "" : trimmed !== "" ? trimmed : undefined;
+
+        const result = applyCompletion(stripped, todayStr, marker, CONFIG.symbols, noteArg);
+        if (result.type === "added" || result.type === "upgraded") {
+          fs.writeFileSync(entry.filePath, matter.stringify(result.content, parsed.data));
+          updateEntry(result.content);
         }
       };
 
@@ -185,7 +226,7 @@ export function todayCommand(program: Command) {
         const parsed  = matter(raw);
         const newBody = removeCompletion(parsed.content, todayStr);
         fs.writeFileSync(entry.filePath, matter.stringify(newBody, parsed.data));
-        updateEntry(newBody, undefined);
+        updateEntry(newBody);
       };
 
       /** Enter on boolean: none/partial → full; full → remove. */
@@ -220,8 +261,32 @@ export function todayCommand(program: Command) {
       // Key handling
       // -----------------------------------------------------------------
       process.stdin.on("data", (key: string) => {
+        // ---- Note input mode (n) ---------------------------------------
+        if (inputMode === "note") {
+          if (key === "\u0003") { cleanup(); process.exit(0); }
+
+          if (key === "\u001b") {
+            inputMode = false;
+            inputBuffer = "";
+          } else if (key === "\r") {
+            const text = inputBuffer;
+            inputMode = false;
+            inputBuffer = "";
+            applyTodayNote(text);
+          } else if (key === "\u007f" || key === "\b") {
+            inputBuffer = inputBuffer.slice(0, -1);
+          } else if (key === "\n") {
+            inputBuffer += " ";
+          } else if (!key.startsWith("\u001b")) {
+            inputBuffer += key.replace(/\r/g, "").replace(/\n/g, " ");
+          }
+
+          render();
+          return;
+        }
+
         // ---- Number input mode ----------------------------------------
-        if (inputMode) {
+        if (inputMode === "numeric") {
           if (key === "\u0003") { cleanup(); process.exit(0); }
 
           if (key === "\u001b") {
@@ -254,9 +319,15 @@ export function todayCommand(program: Command) {
           selected = Math.max(0, selected - 1);
         } else if (key === "\u001b[B" || key === "j") {
           selected = Math.min(entries.length - 1, selected + 1);
+        } else if (key === "n") {
+          const e = entries[selected];
+          if (!e.isNumerical || e.todayMarker !== undefined) {
+            inputMode = "note";
+            inputBuffer = e.todayNote ?? "";
+          }
         } else if (key === "\r") {
           if (entries[selected].isNumerical) {
-            inputMode = true;
+            inputMode = "numeric";
             inputBuffer = "";
           } else {
             toggleFull();

@@ -9,7 +9,46 @@ export type { Symbols, ResolvedConfig } from "./config.js";
 
 export const DEFAULT_SYMBOLS = { done: "x", partial: "/" };
 
-export const COMPLETION_RE = /^- \[(\S+)\] (\d{4}-\d{2}-\d{2})$/;
+/** @deprecated Use `parseCompletionLine` — lines may include an optional note after the date. */
+export const COMPLETION_RE = /^- \[(\S+)\] (\d{4}-\d{2}-\d{2})(?:\s+(.*))?$/;
+
+export interface CompletionEntry {
+  marker: string;
+  /** Text after the ISO date on the line, if any. */
+  note?: string;
+}
+
+/** Parse a single markdown completion line: `- [marker] YYYY-MM-DD` with optional note after the date. */
+export function parseCompletionLine(trimmed: string): CompletionEntry & { date: string } | null {
+  const m = trimmed.match(/^-\s*\[(\S+)\]\s+(\d{4}-\d{2}-\d{2})(?:\s+(.*))?$/);
+  if (!m) return null;
+  const noteRaw = m[3];
+  const note = noteRaw !== undefined && noteRaw.trim() !== "" ? noteRaw.trim() : undefined;
+  return { marker: m[1], date: m[2], note };
+}
+
+function isCompletionLine(trimmed: string): boolean {
+  return parseCompletionLine(trimmed) !== null;
+}
+
+/** Serialize a completion line (note is optional). */
+export function formatCompletionLine(marker: string, date: string, note?: string): string {
+  const t = note?.trim();
+  if (t) return `- [${marker}] ${date} ${t}`;
+  return `- [${marker}] ${date}`;
+}
+
+function completionDateFromLine(trimmed: string): string | null {
+  return parseCompletionLine(trimmed)?.date ?? null;
+}
+
+function resolveNoteForLine(existingNote: string | undefined, incoming: string | undefined): string | undefined {
+  if (incoming !== undefined) {
+    const t = incoming.trim();
+    return t === "" ? undefined : t;
+  }
+  return existingNote;
+}
 
 export const isoLocal = (d: Date) =>
   `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
@@ -53,37 +92,57 @@ export type ApplyResult =
 
 const isNumericMarker = (m: string) => /^\d+$/.test(m);
 
-export function applyCompletion(content: string, date: string, marker: string, symbols = DEFAULT_SYMBOLS): ApplyResult {
-  const entryLine = `- [${marker}] ${date}`;
+/**
+ * Record a completion for `date`. Optional `note` appends text after the date; `undefined` preserves an existing note on that line.
+ */
+export function applyCompletion(
+  content: string,
+  date: string,
+  marker: string,
+  symbols = DEFAULT_SYMBOLS,
+  note?: string,
+): ApplyResult {
   const lines = content.split("\n");
 
-  const existing = lines.find((l) => COMPLETION_RE.test(l.trim()) && l.includes(date));
+  const existing = lines.find((l) => completionDateFromLine(l.trim()) === date);
 
   if (existing) {
-    const existingMarker = existing.trim().match(COMPLETION_RE)![1];
-    if (existingMarker === marker) return { type: "already_done", marker };
+    const parsed = parseCompletionLine(existing.trim());
+    if (!parsed) return { type: "downgrade_ignored" };
+    const existingMarker = parsed.marker;
+    const resolvedNote = resolveNoteForLine(parsed.note, note);
+    const entryLine = formatCompletionLine(marker, date, resolvedNote);
+
+    if (existingMarker === marker) {
+      const prevN = parsed.note?.trim() ?? "";
+      const nextN = resolvedNote?.trim() ?? "";
+      if (prevN === nextN) return { type: "already_done", marker };
+      const upgraded = lines.map((l) => (completionDateFromLine(l.trim()) === date ? entryLine : l));
+      return { type: "upgraded", content: upgraded.join("\n") };
+    }
     if (isNumericMarker(existingMarker) || isNumericMarker(marker)) {
       const upgraded = lines.map((l) =>
-        COMPLETION_RE.test(l.trim()) && l.includes(date) ? entryLine : l
+        completionDateFromLine(l.trim()) === date ? entryLine : l
       );
       return { type: "upgraded", content: upgraded.join("\n") };
     }
     if (existingMarker === symbols.partial && marker === symbols.done) {
       const upgraded = lines.map((l) =>
-        COMPLETION_RE.test(l.trim()) && l.includes(date) ? entryLine : l
+        completionDateFromLine(l.trim()) === date ? entryLine : l
       );
       return { type: "upgraded", content: upgraded.join("\n") };
     }
     return { type: "downgrade_ignored" };
   }
 
-  const completionLines = lines.filter((l) => COMPLETION_RE.test(l.trim()));
-  const otherLines = lines.filter((l) => !COMPLETION_RE.test(l.trim()));
+  const entryLine = formatCompletionLine(marker, date, resolveNoteForLine(undefined, note));
+  const completionLines = lines.filter((l) => isCompletionLine(l.trim()));
+  const otherLines = lines.filter((l) => !isCompletionLine(l.trim()));
 
   completionLines.push(entryLine);
   completionLines.sort((a, b) => {
-    const dateA = a.trim().match(COMPLETION_RE)![2];
-    const dateB = b.trim().match(COMPLETION_RE)![2];
+    const dateA = parseCompletionLine(a.trim())!.date;
+    const dateB = parseCompletionLine(b.trim())!.date;
     return dateA.localeCompare(dateB);
   });
 
@@ -100,16 +159,21 @@ export function applyCompletion(content: string, date: string, marker: string, s
 /** Removes the completion entry for `date` from the body content, if present. */
 export function removeCompletion(content: string, date: string): string {
   const lines = content.split("\n");
-  return lines.filter((l) => !(COMPLETION_RE.test(l.trim()) && l.includes(date))).join("\n");
+  return lines.filter((l) => completionDateFromLine(l.trim()) !== date).join("\n");
 }
 
-export function parseCompletions(content: string): Map<string, string> {
-  const completions = new Map<string, string>();
+export function parseCompletions(content: string): Map<string, CompletionEntry> {
+  const completions = new Map<string, CompletionEntry>();
   for (const line of content.split("\n")) {
-    const m = line.trim().match(COMPLETION_RE);
-    if (m) completions.set(m[2], m[1]);
+    const p = parseCompletionLine(line.trim());
+    if (p) completions.set(p.date, { marker: p.marker, note: p.note });
   }
   return completions;
+}
+
+/** Map of date → marker string for streak helpers that only care about markers. */
+export function completionMarkersOnly(completions: Map<string, CompletionEntry>): Map<string, string> {
+  return new Map([...completions.entries()].map(([d, e]) => [d, e.marker]));
 }
 
 export function calcLongestStreak(completions: Map<string, string>): number {
@@ -179,20 +243,23 @@ export interface Thresholds {
 
 /** Filters out completions that don't meet the partial threshold (for streak calculation). */
 export function filterCompletionsForStreak(
-  completions: Map<string, string>,
+  completions: Map<string, CompletionEntry>,
   partialThreshold: number | null
 ): Map<string, string> {
-  if (partialThreshold === null) return completions;
+  if (partialThreshold === null) return completionMarkersOnly(completions);
+  const t = partialThreshold;
   return new Map(
-    [...completions.entries()].filter(([, m]) => parseInt(m, 10) >= partialThreshold)
+    [...completions.entries()]
+      .filter(([, e]) => parseInt(e.marker, 10) >= t)
+      .map(([d, e]) => [d, e.marker])
   );
 }
 
 /** Returns the display level of a marker given numerical thresholds. Pure — no chalk. */
 /** Per-day numeric markers for charting; missing or non-numeric markers become 0. */
-export function numericValuesForDays(completions: Map<string, string>, days: Date[]): number[] {
+export function numericValuesForDays(completions: Map<string, CompletionEntry>, days: Date[]): number[] {
   return days.map((d) => {
-    const m = completions.get(isoLocal(d))?.trim() ?? "";
+    const m = completions.get(isoLocal(d))?.marker.trim() ?? "";
     return /^\d+$/.test(m) ? parseInt(m, 10) : 0;
   });
 }
@@ -222,6 +289,8 @@ export interface TodayEntry {
   negativeLastSlip: string | null | undefined;
   thresholds: Thresholds;
   todayMarker: string | undefined;
+  /** Note for today’s completion line, if any. */
+  todayNote: string | undefined;
   currentStreak: number;
 }
 
@@ -255,8 +324,9 @@ export function loadTodayHabits(habitsDir: string, todayStr: string): TodayEntry
     };
     const completions = parseCompletions(parsed.content);
     const streakCompletions = filterCompletionsForStreak(completions, thresholds.partial);
-    const neg = isNegative ? calcNegativeStreak(completions, today) : null;
+    const neg = isNegative ? calcNegativeStreak(streakCompletions, today) : null;
 
+    const todayEntry = completions.get(todayStr);
     entries.push({
       name:          (parsed.data.name as string | undefined) ?? path.basename(file, ".md"),
       filePath,
@@ -266,7 +336,8 @@ export function loadTodayHabits(habitsDir: string, todayStr: string): TodayEntry
       isNegative,
       negativeLastSlip: isNegative ? neg!.lastSlip : undefined,
       thresholds,
-      todayMarker:   completions.get(todayStr),
+      todayMarker:   todayEntry?.marker,
+      todayNote:     todayEntry?.note,
       currentStreak: isNegative ? neg!.days : calcCurrentStreak(streakCompletions, today),
     });
   }

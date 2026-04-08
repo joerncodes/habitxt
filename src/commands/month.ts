@@ -15,6 +15,7 @@ import {
   Symbols,
   DEFAULT_SYMBOLS,
   habitShownInMonthAndToday,
+  type CompletionEntry,
 } from "../lib.js";
 
 export const DOW = ["S", "M", "T", "W", "T", "F", "S"];
@@ -24,7 +25,7 @@ export interface HabitRow {
   name: string;
   icon: string | undefined;
   category: string | null;
-  completions: Map<string, string>;
+  completions: Map<string, CompletionEntry>;
   thresholds: Thresholds;
   isNegative: boolean;
 }
@@ -82,7 +83,7 @@ function formatCell(marker: string | undefined): string {
 }
 
 export function buildHabitCells(
-  completions: Map<string, string>,
+  completions: Map<string, CompletionEntry>,
   year: number,
   month: number,
   daysInMonth: number,
@@ -95,7 +96,7 @@ export function buildHabitCells(
     const d = i + 1;
     const dateStr = `${year}-${String(month + 1).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
     if (dateStr > todayStr) return " ".repeat(MONTH_COL);
-    const marker = completions.get(dateStr);
+    const marker = completions.get(dateStr)?.marker;
     const cell = formatCell(marker);
     if (isNegative) {
       if (!marker) return chalk.bgGreen.black(cell);

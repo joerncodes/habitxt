@@ -3,6 +3,9 @@ import {
   applyCompletion,
   removeCompletion,
   parseCompletions,
+  parseCompletionLine,
+  formatCompletionLine,
+  DEFAULT_SYMBOLS,
   calcCurrentStreak,
   calcLongestStreak,
   calcNegativeStreak,
@@ -12,6 +15,7 @@ import {
   numericValuesForDays,
   resolveDoDate,
   habitShownInMonthAndToday,
+  completionMarkersOnly,
 } from "./lib.js";
 
 // ---------------------------------------------------------------------------
@@ -139,6 +143,37 @@ describe("applyCompletion", () => {
       .toEqual({ type: "already_done", marker: "15" });
   });
 
+  it("adds a completion with a note", () => {
+    const result = applyCompletion(emptyContent, "2026-04-07", "x", DEFAULT_SYMBOLS, "Morning run");
+    expect(result.type).toBe("added");
+    if (result.type === "added") {
+      expect(result.content).toContain("- [x] 2026-04-07 Morning run");
+    }
+  });
+
+  it("preserves an existing note when upgrading partial to full if no new note is passed", () => {
+    const result = applyCompletion("\n- [/] 2026-04-07 felt tired\n", "2026-04-07", "x");
+    expect(result.type).toBe("upgraded");
+    if (result.type === "upgraded") {
+      expect(result.content).toContain("- [x] 2026-04-07 felt tired");
+    }
+  });
+
+  it("replaces note when a new note is passed", () => {
+    const result = applyCompletion("\n- [x] 2026-04-07 old\n", "2026-04-07", "x", DEFAULT_SYMBOLS, "new text");
+    expect(result.type).toBe("upgraded");
+    if (result.type === "upgraded") {
+      expect(result.content).toContain("- [x] 2026-04-07 new text");
+      expect(result.content).not.toContain("old");
+    }
+  });
+
+  it("returns already_done when marker and note match", () => {
+    expect(
+      applyCompletion("\n- [x] 2026-04-07 same\n", "2026-04-07", "x", DEFAULT_SYMBOLS, "same"),
+    ).toEqual({ type: "already_done", marker: "x" });
+  });
+
   // Custom symbols
   const bulletSymbols = { done: "•", partial: "-" };
 
@@ -170,16 +205,22 @@ describe("parseCompletions", () => {
   it("parses full and partial completions", () => {
     const content = "\n- [x] 2026-04-05\n- [/] 2026-04-06\n- [x] 2026-04-07\n";
     const map = parseCompletions(content);
-    expect(map.get("2026-04-05")).toBe("x");
-    expect(map.get("2026-04-06")).toBe("/");
-    expect(map.get("2026-04-07")).toBe("x");
+    expect(map.get("2026-04-05")?.marker).toBe("x");
+    expect(map.get("2026-04-06")?.marker).toBe("/");
+    expect(map.get("2026-04-07")?.marker).toBe("x");
   });
 
   it("parses numeric markers", () => {
     const content = "\n- [5] 2026-04-06\n- [12] 2026-04-07\n";
     const map = parseCompletions(content);
-    expect(map.get("2026-04-06")).toBe("5");
-    expect(map.get("2026-04-07")).toBe("12");
+    expect(map.get("2026-04-06")?.marker).toBe("5");
+    expect(map.get("2026-04-07")?.marker).toBe("12");
+  });
+
+  it("parses optional notes after the date", () => {
+    const content = "\n- [x] 2026-04-07 great session\n";
+    const map = parseCompletions(content);
+    expect(map.get("2026-04-07")).toEqual({ marker: "x", note: "great session" });
   });
 
   it("ignores non-completion lines", () => {
@@ -189,6 +230,42 @@ describe("parseCompletions", () => {
 
   it("returns empty map for empty content", () => {
     expect(parseCompletions("").size).toBe(0);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// parseCompletionLine / formatCompletionLine
+// ---------------------------------------------------------------------------
+
+describe("parseCompletionLine", () => {
+  it("parses lines without notes", () => {
+    expect(parseCompletionLine("- [x] 2026-04-07")).toEqual({
+      marker: "x",
+      date: "2026-04-07",
+      note: undefined,
+    });
+  });
+
+  it("parses lines with notes", () => {
+    expect(parseCompletionLine("- [15] 2026-04-05  steps")).toEqual({
+      marker: "15",
+      date: "2026-04-05",
+      note: "steps",
+    });
+  });
+
+  it("returns null for non-completion lines", () => {
+    expect(parseCompletionLine("not a completion")).toBeNull();
+  });
+});
+
+describe("formatCompletionLine", () => {
+  it("omits note when absent", () => {
+    expect(formatCompletionLine("x", "2026-04-07")).toBe("- [x] 2026-04-07");
+  });
+
+  it("appends note after the date", () => {
+    expect(formatCompletionLine("x", "2026-04-07", "hello")).toBe("- [x] 2026-04-07 hello");
   });
 });
 
@@ -290,10 +367,14 @@ describe("calcNegativeStreak", () => {
 // ---------------------------------------------------------------------------
 
 describe("filterCompletionsForStreak", () => {
-  const map = new Map([["2026-04-05", "3"], ["2026-04-06", "5"], ["2026-04-07", "12"]]);
+  const map = new Map([
+    ["2026-04-05", { marker: "3" }],
+    ["2026-04-06", { marker: "5" }],
+    ["2026-04-07", { marker: "12" }],
+  ]);
 
-  it("returns the same map when threshold is null", () => {
-    expect(filterCompletionsForStreak(map, null)).toBe(map);
+  it("returns all markers when threshold is null", () => {
+    expect(filterCompletionsForStreak(map, null)).toEqual(completionMarkersOnly(map));
   });
 
   it("excludes entries below the threshold", () => {
@@ -405,6 +486,11 @@ describe("removeCompletion", () => {
   it("removes a numerical completion", () => {
     const content = "\n- [3200] 2026-04-07\n";
     expect(removeCompletion(content, "2026-04-07")).not.toContain("2026-04-07");
+  });
+
+  it("removes a line that includes a note", () => {
+    const content = "\n- [x] 2026-04-07 optional note here\n";
+    expect(removeCompletion(content, "2026-04-07")).not.toContain("- [x]");
   });
 
   it("leaves other dates untouched", () => {

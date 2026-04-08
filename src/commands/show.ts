@@ -17,12 +17,13 @@ import {
   numericValuesForDays,
   Thresholds,
   CONFIG,
+  completionMarkersOnly,
 } from "../lib.js";
 
 export function showCommand(program: Command) {
   program
     .command("show <habit>")
-    .description("Show habit details, last 10 days, streaks, and a value chart for numerical habits")
+    .description("Show habit details, last 10 days, streaks, completion notes, and a value chart for numerical habits")
     .action((habit: string) => {
       const filePath = findHabitFile(habit);
       if (!filePath) {
@@ -54,10 +55,10 @@ export function showCommand(program: Command) {
       const MONTH_LABELS = days.map((d) =>
         d.toLocaleDateString("en-US", { month: "short", day: "2-digit" })
       );
-      const MARKERS = days.map((d) => completions.get(isoLocal(d)) ?? " ");
+      const MARKERS = days.map((d) => completions.get(isoLocal(d))?.marker ?? " ");
 
       const streakCompletions = filterCompletionsForStreak(completions, thresholds.partial);
-      const negInfo = isNegative ? calcNegativeStreak(completions, today) : null;
+      const negInfo = isNegative ? calcNegativeStreak(completionMarkersOnly(completions), today) : null;
       const currentStreak = isNegative ? negInfo!.days : calcCurrentStreak(streakCompletions, today);
       const longestStreak = calcLongestStreak(streakCompletions);
 
@@ -96,6 +97,18 @@ export function showCommand(program: Command) {
             "day of month →  " + days.map((d) => d.getDate()).join(" "),
           ),
         );
+        console.log();
+      }
+
+      const noteLines: string[] = [];
+      days.forEach((d, i) => {
+        const iso = isoLocal(d);
+        const n = completions.get(iso)?.note?.trim();
+        if (n) noteLines.push(`${MONTH_LABELS[i].trim()}  ${n}`);
+      });
+      if (noteLines.length > 0) {
+        console.log(chalk.bold("Notes"));
+        for (const line of noteLines) console.log(chalk.dim(line));
         console.log();
       }
       if (isNegative) {

@@ -2,6 +2,14 @@
 
 All notable changes to this project are documented in this file.
 
+## [1.1.3] — 2026-04-08
+
+### Added
+
+- **`habitxt today`:** **n** opens inline note entry (Enter saves, Esc cancels). If today is already completed, sets or updates the note; if not, completes (done / slip) and adds the note. Numerical habits: only after today’s value is set. Empty note with an existing completion clears the note.
+
+- **Completion notes:** optional text after the ISO date on a completion line (`- [x] 2026-04-08 my note`). `habitxt do` accepts `-n` / `--note`. `show` prints a **Notes** section for the last-10-day window; `today` shows a truncated note in the row and preserves notes when toggling the same day. Parsing uses `parseCompletionLine` / `CompletionEntry` (`marker` + optional `note`); `applyCompletion` can update note-only entries.
+
 ## [1.1.2] — 2026-04-08
 
 ### Added

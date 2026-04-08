@@ -10,7 +10,8 @@ export function doCommand(program: Command) {
       "Mark a habit as done for today or a specific date (YYYY-MM-DD or English phrases like yesterday, last Tuesday)",
     )
     .option("-p, --partial", "Mark as partially completed (boolean habits only)")
-    .action((habit: string, rest: string[] = [], opts?: { partial?: boolean }) => {
+    .option("-n, --note <text>", "Optional note stored after the date on the completion line")
+    .action((habit: string, rest: string[] = [], opts?: { partial?: boolean; note?: string }) => {
       const filePath = findHabitFile(habit);
       if (!filePath) {
         console.error(`Habit not found: "${habit}"`);
@@ -65,7 +66,7 @@ export function doCommand(program: Command) {
         console.log(`ℹ "${habit}" was archived — unarchiving.`);
       }
 
-      const result = applyCompletion(parsed.content, targetDate, marker);
+      const result = applyCompletion(parsed.content, targetDate, marker, CONFIG.symbols, opts?.note);
 
       switch (result.type) {
         case "added":

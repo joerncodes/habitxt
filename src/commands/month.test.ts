@@ -156,8 +156,8 @@ describe("buildNumRow", () => {
 
 describe("buildHabitCells", () => {
   const completions = new Map([
-    ["2026-04-01", "x"],
-    ["2026-04-03", "/"],
+    ["2026-04-01", { marker: "x" }],
+    ["2026-04-03", { marker: "/" }],
   ]);
   const todayStr = "2026-04-05";
   const noThresholds = { partial: null, full: null };
@@ -189,7 +189,7 @@ describe("buildHabitCells", () => {
   });
 
   it("numerical >= full threshold renders green", () => {
-    const num = new Map([["2026-04-01", "12"]]);
+    const num = new Map([["2026-04-01", { marker: "12" }]]);
     const cells = buildHabitCells(num, 2026, 3, 30, todayStr, { partial: 5, full: 10 });
     expect(strip(cells[0])).toContain("12");
     // green = different from plain
@@ -197,36 +197,36 @@ describe("buildHabitCells", () => {
   });
 
   it("numerical >= partial but < full renders yellow", () => {
-    const num = new Map([["2026-04-01", "7"]]);
+    const num = new Map([["2026-04-01", { marker: "7" }]]);
     const cellsNum  = buildHabitCells(num, 2026, 3, 30, todayStr, { partial: 5, full: 10 });
-    const cellsFull = buildHabitCells(new Map([["2026-04-01", "12"]]), 2026, 3, 30, todayStr, { partial: 5, full: 10 });
+    const cellsFull = buildHabitCells(new Map([["2026-04-01", { marker: "12" }]]), 2026, 3, 30, todayStr, { partial: 5, full: 10 });
     // partial cell differs from full cell (different chalk color)
     expect(cellsNum[0]).not.toBe(cellsFull[0]);
     expect(strip(cellsNum[0])).toContain("7");
   });
 
   it("numerical < partial is plain", () => {
-    const num = new Map([["2026-04-01", "3"]]);
+    const num = new Map([["2026-04-01", { marker: "3" }]]);
     const cells = buildHabitCells(num, 2026, 3, 30, todayStr, { partial: 5, full: 10 });
     expect(cells[0]).toBe(" 3 ");
   });
 
   it("two-digit number fits in MONTH_COL (right-aligned)", () => {
-    const num = new Map([["2026-04-01", "12"]]);
+    const num = new Map([["2026-04-01", { marker: "12" }]]);
     const cells = buildHabitCells(num, 2026, 3, 30, todayStr, { partial: 5, full: 10 });
     expect(strip(cells[0])).toHaveLength(MONTH_COL);
     expect(strip(cells[0])).toContain("12");
   });
 
   it("number >= 100 is capped to '99+' (3 chars)", () => {
-    const num = new Map([["2026-04-01", "150"]]);
+    const num = new Map([["2026-04-01", { marker: "150" }]]);
     const cells = buildHabitCells(num, 2026, 3, 30, todayStr, { partial: 50, full: 100 });
     expect(strip(cells[0])).toBe("99+");
     expect(strip(cells[0])).toHaveLength(MONTH_COL);
   });
 
   it("negative habit: clean day is green, slip is red", () => {
-    const map = new Map([["2026-04-01", "x"]]);
+    const map = new Map([["2026-04-01", { marker: "x" }]]);
     const cells = buildHabitCells(map, 2026, 3, 30, todayStr, noThresholds, undefined, true);
     expect(cells[0]).not.toBe(" x ");
     expect(strip(cells[0])).toContain("x");

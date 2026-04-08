@@ -36,6 +36,7 @@ Mark a habit complete for today (or a specific date):
   habitxt do Meditate --partial           # mark as partial (/)
   habitxt do Steps 8500                   # numerical habit
   habitxt do Steps 8500 2026-04-01        # numerical + specific date
+  habitxt do Meditate --note "felt good"  # optional note (stored on the line after the date)
   habitxt do "No Alcohol"                 # negative habit: records a slip
 
 Running `do` on an **archived** habit automatically unarchives it. **`do` does
@@ -53,9 +54,10 @@ Show the last 10 days and streak info for one habit:
 
 Output includes a color-coded 10-day grid: for boolean habits, green = full,
 yellow = partial; for **negative** habits, green = clean day, red = slip.
-Streak lines are **current** and **longest** for boolean/numerical habits; for
-negative habits you get **current** clean streak only (**Never slipped** or
-`N days clean`), with no longest streak.
+If any day in the window has a **completion note**, a **Notes** section lists
+those lines (date + text). Streak lines are **current** and **longest** for
+boolean/numerical habits; for negative habits you get **current** clean streak
+only (**Never slipped** or `N days clean`), with no longest streak.
 
 ### month
 
@@ -85,6 +87,7 @@ category, with a live completion counter at the top. Key bindings:
   ↑ / k         move up
   ↓ / j         move down
   Enter         toggle full completion (done ↔ undone), or slip ↔ clean for negative habits
+  n             note: set or edit today’s note (Enter save, Esc cancel); if today is empty, marks done and adds the note
   x             mark fully done, or record a slip (negative)
   /             toggle partial completion (partial ↔ undone); skipped for negative habits
   d             clear today's mark (or clear today's slip for negative habits)
@@ -95,7 +98,12 @@ habits, and **clean** (no slip) rows for negative habits.
 
 For numerical habits, pressing Enter prompts for a value inline and
 shows the partial and full thresholds as a hint. Backspace edits the
-input; Escape cancels without writing.
+input; Escape cancels without writing. **n** opens the note prompt only
+after a value is logged for today (same as `do --note`).
+
+On boolean or negative habits, **n** can add a note even when today is
+still empty: saving applies done (or a slip for negative) with your note.
+An empty note with a completion already saved clears the note.
 
 ### edit
 
@@ -184,6 +192,14 @@ Boolean habits support two completion levels:
 
 Use `habitxt do <habit> --partial` or the `/` key in `habitxt today`
 to record a partial completion. Both completion levels count toward streaks.
+
+Optional **completion notes** are free text after the date on a line:
+
+  - [x] 2026-04-08 morning session, felt focused
+
+Add them with `habitxt do <habit> --note "..."` (or `--note` on numerical /
+negative habits). Interactive `today` keeps an existing note when you change
+the marker for the same day.
 
 ### Frontmatter Fields
 
