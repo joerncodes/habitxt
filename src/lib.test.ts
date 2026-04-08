@@ -25,6 +25,7 @@ import {
   completionMarkersOnly,
   parseNumericChartAxis,
   mondayFirstColumnIndex,
+  weekStartColumnIndex,
   habitOnTrackForHeatmap,
   buildYearDayCompletionCounts,
   ratioToHeatmapStep,
@@ -49,10 +50,27 @@ describe("habitShownInMonthAndToday", () => {
 });
 
 // ---------------------------------------------------------------------------
-// mondayFirstColumnIndex
+// weekStartColumnIndex / mondayFirstColumnIndex
 // ---------------------------------------------------------------------------
 
+describe("weekStartColumnIndex", () => {
+  const thuJan2026 = new Date(2026, 0, 1);
+
+  it("uses Sunday as column 0 when week starts on Sun", () => {
+    expect(weekStartColumnIndex(thuJan2026, "sun")).toBe(4);
+  });
+
+  it("uses Monday as column 0 when week starts on Mon", () => {
+    expect(weekStartColumnIndex(thuJan2026, "mon")).toBe(3);
+  });
+});
+
 describe("mondayFirstColumnIndex", () => {
+  it("matches weekStartColumnIndex(..., mon)", () => {
+    const d = new Date(2026, 0, 1);
+    expect(mondayFirstColumnIndex(d)).toBe(weekStartColumnIndex(d, "mon"));
+  });
+
   it("maps Jan 1 2026 (Thursday) to column 3", () => {
     expect(mondayFirstColumnIndex(new Date(2026, 0, 1))).toBe(3);
   });

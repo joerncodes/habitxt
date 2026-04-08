@@ -4,9 +4,9 @@ import matter from "gray-matter";
 import { parseDate } from "chrono-node";
 import stringWidth from "string-width";
 import { HABITS_DIR, CONFIG } from "./config.js";
-import type { Symbols } from "./config.js";
+import type { Symbols, WeekStart } from "./config.js";
 export { HABITS_DIR, CONFIG };
-export type { Symbols, ResolvedConfig } from "./config.js";
+export type { Symbols, ResolvedConfig, WeekStart } from "./config.js";
 
 export const DEFAULT_SYMBOLS = { done: "x", partial: "/" };
 
@@ -423,9 +423,18 @@ export function habitShownInMonthAndToday(status: unknown): boolean {
   return status !== "archived" && status !== "hidden";
 }
 
+/**
+ * Column index of `d` in a 7-day row (`0` = week start column).
+ * JS `Date#getDay()`: Sunday = 0 … Saturday = 6.
+ */
+export function weekStartColumnIndex(d: Date, weekStart: WeekStart): number {
+  if (weekStart === "sun") return d.getDay();
+  return (d.getDay() + 6) % 7;
+}
+
 /** Monday-first weekday column: `0` = Monday … `6` = Sunday. */
 export function mondayFirstColumnIndex(d: Date): number {
-  return (d.getDay() + 6) % 7;
+  return weekStartColumnIndex(d, "mon");
 }
 
 export interface HabitHeatInput {

@@ -8,15 +8,20 @@ export interface Symbols {
   partial: string;
 }
 
+/** First column of `habitxt year` calendar rows. */
+export type WeekStart = "sun" | "mon";
+
 export interface ResolvedConfig {
   habitsDir: string;
   symbols: Symbols;
+  weekStart: WeekStart;
 }
 
 interface HabitxtConfig {
   habitsDir?: string;
   doneSymbol?: string;
   partialSymbol?: string;
+  weekStart?: string;
 }
 
 function readToml(filePath: string): HabitxtConfig {
@@ -27,6 +32,14 @@ function readToml(filePath: string): HabitxtConfig {
     console.error(`habitxt: error reading config ${filePath}: ${msg}`);
     process.exit(1);
   }
+}
+
+function parseWeekStart(raw: unknown, filePath: string): WeekStart {
+  const s = String(raw).trim().toLowerCase();
+  if (s === "sun" || s === "sunday") return "sun";
+  if (s === "mon" || s === "monday") return "mon";
+  console.error(`habitxt: invalid weekStart in ${filePath}: use "sun" or "mon"`);
+  process.exit(1);
 }
 
 /**
@@ -45,6 +58,7 @@ export function resolveConfig(
 ): ResolvedConfig {
   let habitsDir: string | undefined;
   let fileSymbols: Partial<Symbols> = {};
+  let weekStart: WeekStart | undefined;
 
   const localConfig = path.join(cwd, "habitxt.toml");
   if (fs.existsSync(localConfig)) {
@@ -52,15 +66,19 @@ export function resolveConfig(
     if (cfg.habitsDir) habitsDir = path.resolve(cwd, cfg.habitsDir);
     if (cfg.doneSymbol)    fileSymbols.done    = cfg.doneSymbol;
     if (cfg.partialSymbol) fileSymbols.partial = cfg.partialSymbol;
+    if (cfg.weekStart !== undefined) weekStart = parseWeekStart(cfg.weekStart, localConfig);
   }
 
-  if (!habitsDir || !fileSymbols.done || !fileSymbols.partial) {
+  if (!habitsDir || !fileSymbols.done || !fileSymbols.partial || weekStart === undefined) {
     const globalConfig = path.join(home, ".habitxt.toml");
     if (fs.existsSync(globalConfig)) {
       const cfg = readToml(globalConfig);
       if (!habitsDir && cfg.habitsDir) habitsDir = path.resolve(cfg.habitsDir);
       if (!fileSymbols.done    && cfg.doneSymbol)    fileSymbols.done    = cfg.doneSymbol;
       if (!fileSymbols.partial && cfg.partialSymbol) fileSymbols.partial = cfg.partialSymbol;
+      if (weekStart === undefined && cfg.weekStart !== undefined) {
+        weekStart = parseWeekStart(cfg.weekStart, globalConfig);
+      }
     }
   }
 
@@ -72,6 +90,7 @@ export function resolveConfig(
       done:    fileSymbols.done    ?? "x",
       partial: fileSymbols.partial ?? "/",
     },
+    weekStart: weekStart ?? "sun",
   };
 }
 

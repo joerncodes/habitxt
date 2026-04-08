@@ -4,14 +4,15 @@ import * as path from "path";
 import matter from "gray-matter";
 import chalk from "chalk";
 import stringWidth from "string-width";
-import Table from "cli-table3";
 import {
   HABITS_DIR,
+  CONFIG,
   parseCompletions,
   habitShownInMonthAndToday,
   buildYearDayCompletionCounts,
-  mondayFirstColumnIndex,
+  weekStartColumnIndex,
   ratioToHeatmapStep,
+  type WeekStart,
   HEATMAP_RGB,
   type HabitHeatInput,
   type Thresholds,
@@ -21,9 +22,20 @@ const HEAT_PAD = "    ";
 const BETWEEN_MONTHS = "  ";
 /** Two full blocks per cell — same visual width as before; color is foreground only (like heatmapper’s `██`). */
 const HEAT_BLOCK = "██";
+/** Seven days × two-char cells (no gaps between). */
+const MONTH_SMOOSH_WIDTH = 7 * 2;
+
+const DOW_LETTERS: Record<WeekStart, string[]> = {
+  sun: ["S", "M", "T", "W", "T", "F", "S"],
+  mon: ["M", "T", "W", "T", "F", "S", "S"],
+};
+
+function formatDowHeader(weekStart: WeekStart): string {
+  return DOW_LETTERS[weekStart].map((c) => c.padStart(2, " ")).join("");
+}
 
 /**
- * We render a real calendar (month grid, Monday-first) in-process. [heatmapper](https://github.com/masukomi/heatmapper)
+ * We render a real calendar (month grid) in-process. [heatmapper](https://github.com/masukomi/heatmapper)
  * fills a fixed-width column grid from piped data; it doesn’t lay out months, and would require a separate Chicken Scheme binary.
  */
 
@@ -40,10 +52,10 @@ function paintDay(completed: number, total: number, isFuture: boolean): string {
   return paintHeatStep(step);
 }
 
-function buildMonthWeeks(year: number, month: number): (number | null)[][] {
+function buildMonthWeeks(year: number, month: number, weekStart: WeekStart): (number | null)[][] {
   const first = new Date(year, month, 1);
   const lastDay = new Date(year, month + 1, 0).getDate();
-  const pad = mondayFirstColumnIndex(first);
+  const pad = weekStartColumnIndex(first, weekStart);
   const cells: (number | null)[] = [];
   for (let i = 0; i < pad; i++) cells.push(null);
   for (let d = 1; d <= lastDay; d++) cells.push(d);
@@ -77,40 +89,37 @@ function padVisualEnd(s: string, width: number): string {
   return s + " ".repeat(width - w);
 }
 
-function monthTableLines(
+/** One month: weekday row + week rows of smooshed `██` cells (no table borders). */
+function monthSmooshedLines(
   year: number,
   month: number,
+  weekStart: WeekStart,
   counts: Map<string, number>,
   totalHabits: number,
   todayStr: string,
   todayYear: number,
   padWeeks: number,
 ): string[] {
-  const weeks = buildMonthWeeks(year, month);
+  const weeks = buildMonthWeeks(year, month, weekStart);
   while (weeks.length < padWeeks) {
     weeks.push([null, null, null, null, null, null, null]);
   }
 
-  const table = new Table({
-    head: ["M", "T", "W", "T", "F", "S", "S"],
-    style: {
-      border: ["dim", "dim", "dim", "dim"],
-      head: ["dim"],
-    },
-  });
-
+  const lines: string[] = [chalk.dim(formatDowHeader(weekStart))];
   for (const week of weeks) {
-    table.push(
-      week.map((day) => formatDayCell(day, year, month, counts, totalHabits, todayStr, todayYear)),
-    );
+    let row = "";
+    for (const day of week) {
+      row += formatDayCell(day, year, month, counts, totalHabits, todayStr, todayYear);
+    }
+    lines.push(row);
   }
-
-  return table.toString().split("\n");
+  return lines;
 }
 
 function renderMonthTriple(
   year: number,
   months: [number, number, number],
+  weekStart: WeekStart,
   counts: Map<string, number>,
   totalHabits: number,
   todayStr: string,
@@ -119,25 +128,23 @@ function renderMonthTriple(
   const titles = months.map((m) =>
     new Date(year, m, 1).toLocaleDateString("en-US", { month: "short" }),
   );
-  const weekGrids = months.map((m) => buildMonthWeeks(year, m));
+  const weekGrids = months.map((m) => buildMonthWeeks(year, m, weekStart));
   const padWeeks = Math.max(...weekGrids.map((w) => w.length));
 
   const lineSets = months.map((m) =>
-    monthTableLines(year, m, counts, totalHabits, todayStr, todayYear, padWeeks),
+    monthSmooshedLines(year, m, weekStart, counts, totalHabits, todayStr, todayYear, padWeeks),
   );
   const maxLines = Math.max(...lineSets.map((l) => l.length));
 
-  const colWidths = lineSets.map((lines) => Math.max(...lines.map((ln) => stringWidth(ln)), 0));
-
   const titleLine =
     HEAT_PAD +
-    titles
-      .map((t, i) => chalk.bold(padVisualEnd(t, colWidths[i] ?? 0)))
-      .join(BETWEEN_MONTHS);
+    titles.map((t) => chalk.bold(padVisualEnd(t, MONTH_SMOOSH_WIDTH))).join(BETWEEN_MONTHS);
   console.log(titleLine);
 
   for (let row = 0; row < maxLines; row++) {
-    const parts = lineSets.map((lines, i) => padVisualEnd(lines[row] ?? "", colWidths[i] ?? 0));
+    const parts = lineSets.map((lines) =>
+      padVisualEnd(lines[row] ?? "", MONTH_SMOOSH_WIDTH),
+    );
     console.log(HEAT_PAD + parts.join(BETWEEN_MONTHS));
   }
 }
@@ -163,6 +170,8 @@ export function yearCommand(program: Command) {
       } else {
         year = todayYear;
       }
+
+      const weekStart: WeekStart = CONFIG.weekStart;
 
       const files = fs.readdirSync(HABITS_DIR).filter((f) => f.endsWith(".md")).sort();
       if (files.length === 0) {
@@ -212,7 +221,7 @@ export function yearCommand(program: Command) {
         [9, 10, 11],
       ];
       for (const trio of quarters) {
-        renderMonthTriple(year, trio, counts, total, todayStr, todayYear);
+        renderMonthTriple(year, trio, weekStart, counts, total, todayStr, todayYear);
         console.log();
       }
     });

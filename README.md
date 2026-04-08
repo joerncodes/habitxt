@@ -192,6 +192,16 @@ The characters written for full and partial completions can be changed:
 
 Defaults are `x` (done) and `/` (partial).
 
+### Calendar week (`habitxt year`)
+
+Set which weekday appears in the first column of the yearly heatmap:
+
+  # ~/.habitxt.toml
+  weekStart = "mon"
+
+Allowed values are `"sun"` (default) or `"mon"`. Local `habitxt.toml` overrides
+`~/.habitxt.toml` when both set `weekStart`.
+
 ## Habits
 
 ### Choosing a Folder

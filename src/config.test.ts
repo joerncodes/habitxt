@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import * as fs from "fs";
 import * as os from "os";
 import * as path from "path";
-import { resolveHabitsDir } from "./config.js";
+import { resolveConfig, resolveHabitsDir } from "./config.js";
 
 function writeToml(dir: string, filename: string, content: string) {
   fs.writeFileSync(path.join(dir, filename), content);
@@ -64,5 +64,38 @@ describe("resolveHabitsDir", () => {
   it("falls back to default when global config has no habitsDir key", () => {
     writeToml(tmp, ".habitxt.toml", `# no habitsDir here\n`);
     expect(resolveHabitsDir(undefined, tmp, tmp)).toBe(path.join(tmp, "habits"));
+  });
+});
+
+describe("resolveConfig weekStart", () => {
+  let tmp: string;
+
+  beforeEach(() => {
+    tmp = fs.mkdtempSync(path.join(os.tmpdir(), "habitxt-cfg-"));
+  });
+
+  afterEach(() => {
+    fs.rmSync(tmp, { recursive: true });
+  });
+
+  it("defaults weekStart to sun", () => {
+    expect(resolveConfig(undefined, tmp, tmp).weekStart).toBe("sun");
+  });
+
+  it("reads weekStart from local habitxt.toml", () => {
+    writeToml(tmp, "habitxt.toml", `weekStart = "mon"\n`);
+    expect(resolveConfig(undefined, tmp, tmp).weekStart).toBe("mon");
+  });
+
+  it("lets local weekStart override global", () => {
+    writeToml(tmp, "habitxt.toml", `weekStart = "sun"\n`);
+    writeToml(tmp, ".habitxt.toml", `weekStart = "mon"\n`);
+    expect(resolveConfig(undefined, tmp, tmp).weekStart).toBe("sun");
+  });
+
+  it("falls back to global when local omits weekStart", () => {
+    writeToml(tmp, "habitxt.toml", `# no weekStart\n`);
+    writeToml(tmp, ".habitxt.toml", `weekStart = "mon"\n`);
+    expect(resolveConfig(undefined, tmp, tmp).weekStart).toBe("mon");
   });
 });
