@@ -2,6 +2,7 @@
 import { Hono } from "hono";
 import { serve } from "@hono/node-server";
 import * as fs from "fs";
+import { realpathSync } from "fs";
 import { fileURLToPath } from "url";
 import matter from "gray-matter";
 import {
@@ -188,7 +189,15 @@ export function createApp(habitsDir: string, symbols: Symbols, apiKey: string) {
 // Start (only when run directly, not when imported by tests)
 // ---------------------------------------------------------------------------
 
-if (process.argv[1] === fileURLToPath(import.meta.url)) {
+const _isMain = (() => {
+  try {
+    return realpathSync(process.argv[1]) === realpathSync(fileURLToPath(import.meta.url));
+  } catch {
+    return false;
+  }
+})();
+
+if (_isMain) {
   const apiKey = process.env.HABITXT_API_KEY;
   if (!apiKey) {
     console.error("habitxt-server: HABITXT_API_KEY env var is required");

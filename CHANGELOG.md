@@ -2,6 +2,12 @@
 
 All notable changes to this project are documented in this file.
 
+## [1.4.3] — 2026-04-09
+
+### Fixed
+
+- **`habitxt-server` silent exit:** when installed globally, `process.argv[1]` is a symlink while `import.meta.url` is the real path — they never matched, so the server exited silently without starting. Fixed by resolving symlinks on both sides with `realpathSync` before comparing.
+
 ## [1.4.2] — 2026-04-09
 
 ### Fixed
