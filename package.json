@@ -4,7 +4,10 @@
   "description": "Text-based habit tracker — habits as plain Markdown files",
   "type": "module",
   "main": "./dist/index.js",
-  "bin": "./dist/index.js",
+  "bin": {
+    "habitxt": "./dist/index.js",
+    "habitxt-server": "./dist/server.js"
+  },
   "files": [
     "dist",
     "README.md",
