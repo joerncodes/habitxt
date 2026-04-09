@@ -1,6 +1,6 @@
 {
   "name": "habitxt",
-  "version": "1.4.0",
+  "version": "1.4.1",
   "description": "Text-based habit tracker — habits as plain Markdown files",
   "type": "module",
   "main": "./dist/index.js",

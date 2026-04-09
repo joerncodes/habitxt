@@ -2,6 +2,12 @@
 
 All notable changes to this project are documented in this file.
 
+## [1.4.1] — 2026-04-09
+
+### Fixed
+
+- **`habitxt-server` bin:** `src/server.ts` is now compiled by tsup to `dist/server.js` and exposed as a `habitxt-server` binary. Previously the server was not included in the published package and could not be used after a global `npm install -g habitxt`.
+
 ## [1.4.0] — 2026-04-09
 
 ### Added
