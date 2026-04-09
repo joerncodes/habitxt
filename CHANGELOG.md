@@ -2,6 +2,12 @@
 
 All notable changes to this project are documented in this file.
 
+## [1.4.0] — 2026-04-09
+
+### Added
+
+- **REST API server** (`server.js`): Hono-based HTTP server exposing habits over JSON. Start with `HABITXT_API_KEY=secret node server.js`; port configurable via `HABITXT_PORT` (default `3000`). All routes require a Bearer token. Endpoints: `GET /habits`, `GET /habits/:name`, `POST /habits/:name/do`, `DELETE /habits/:name/do/:date`, `GET /today`. The app is exported as `createApp` for testing; the server only starts when run directly.
+
 ## [1.3.1] — 2026-04-08
 
 ### Added

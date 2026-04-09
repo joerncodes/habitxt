@@ -306,6 +306,51 @@ Example:
   type: negative
   ---
 
+## REST API
+
+habitxt includes a REST API server for remote or programmatic access.
+
+### Starting the server
+
+  HABITXT_API_KEY=your-secret node server.js
+
+Set `HABITXT_PORT` to change the port (default `3000`). The server reads habit
+files from the same location as the CLI (config file, `HABITXT_DIR` env var, etc.).
+
+`HABITXT_API_KEY` is required — the server refuses to start without it.
+
+### Authentication
+
+All requests require a Bearer token:
+
+  Authorization: Bearer your-secret
+
+### Endpoints
+
+  GET    /habits                   List all open habits
+  GET    /habits/:name             Habit detail, completions, and streaks
+  POST   /habits/:name/do          Record a completion
+  DELETE /habits/:name/do/:date    Remove a completion for a date
+  GET    /today                    All open habits with today's status
+
+### Request body for POST /habits/:name/do
+
+  {
+    "date":   "2026-04-09",  // optional, defaults to today
+    "marker": "x",           // optional for boolean habits (defaults to done symbol)
+                             // required for numerical habits (the logged value)
+    "note":   "felt good"    // optional
+  }
+
+### Example
+
+  curl -H "Authorization: Bearer your-secret" http://localhost:3000/habits
+  curl -X POST \
+    -H "Authorization: Bearer your-secret" \
+    -H "Content-Type: application/json" \
+    -d '{"marker": "8000"}' \
+    http://localhost:3000/habits/Steps/do
+
 ## Contributing
 
 Bug reports and pull requests welcome.
