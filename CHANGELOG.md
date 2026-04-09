@@ -2,6 +2,12 @@
 
 All notable changes to this project are documented in this file.
 
+## [1.4.2] — 2026-04-09
+
+### Fixed
+
+- **`habitxt-server` shebang:** added `#!/usr/bin/env node` to `src/server.ts` so tsup emits it in `dist/server.js`. Without it, the installed binary was executed as a shell script and failed immediately.
+
 ## [1.4.1] — 2026-04-09
 
 ### Fixed
