@@ -17,6 +17,8 @@ import {
   loadTodayHabits,
   isoLocal,
   CONFIG,
+  resolveNumericalDoMarker,
+  parseNumericalStep,
   type Symbols,
 } from "./lib.js";
 
@@ -129,9 +131,18 @@ export function createApp(habitsDir: string, symbols: Symbols, apiKey: string) {
 
     let marker: string;
     if (body.marker !== undefined) {
-      marker = body.marker;
+      if (isNumerical) {
+        const resolved = resolveNumericalDoMarker(parsed.content, date, body.marker);
+        if (!resolved) return c.json({ error: "Invalid numerical marker value" }, 400);
+        marker = resolved;
+      } else {
+        marker = body.marker;
+      }
     } else if (isNumerical) {
-      return c.json({ error: "Numerical habit requires a marker value" }, 400);
+      const step = parseNumericalStep(parsed.data);
+      const markerDefault = resolveNumericalDoMarker(parsed.content, date, `+${step}`);
+      if (!markerDefault) return c.json({ error: "Could not apply default numerical increment" }, 400);
+      marker = markerDefault;
     } else {
       marker = symbols.done;
     }

@@ -10,6 +10,9 @@ export type { Symbols, ResolvedConfig, WeekStart } from "./config.js";
 
 export const DEFAULT_SYMBOLS = { done: "x", partial: "/" };
 
+/** Matches integer completion markers: digits with optional leading `+` or `-` (e.g. `7`, `-1`, `+2`). */
+export const INTEGER_COMPLETION_MARKER_RE = /^[+-]?\d+$/;
+
 /** @deprecated Use `parseCompletionLine` — lines may include an optional note after the date. */
 export const COMPLETION_RE = /^- \[(\S+)\] (\d{4}-\d{2}-\d{2})(?:\s+(.*))?$/;
 
@@ -66,6 +69,108 @@ export function resolveDoDate(phrase: string, ref: Date = new Date()): string | 
   return isoLocal(d);
 }
 
+/** `+N` adds N to the numeric value already logged for `date` (missing or non-numeric → 0). Otherwise absolute integer (`-?\d+`). */
+const RELATIVE_NUMERICAL_ADD_RE = /^\+\d+$/;
+const ABSOLUTE_NUMERICAL_INPUT_RE = /^-?\d+$/;
+
+/** True if `token` is a relative `+N` or absolute integer (no leading `+` on positives). */
+export function isValidNumericalValueToken(token: string): boolean {
+  const t = token.trim();
+  if (t === "") return false;
+  return RELATIVE_NUMERICAL_ADD_RE.test(t) || ABSOLUTE_NUMERICAL_INPUT_RE.test(t);
+}
+
+/**
+ * Default increment when logging a numerical habit with no explicit value (`habitxt do Mood` or empty submit in `today`).
+ * Valid positive integer from frontmatter `step`, otherwise `1`.
+ */
+export function parseNumericalStep(data: Record<string, unknown>): number {
+  const s = data.step;
+  if (typeof s === "number" && Number.isInteger(s) && s > 0) return s;
+  if (typeof s === "string" && s.trim() !== "") {
+    const n = parseInt(s.trim(), 10);
+    if (Number.isInteger(n) && n > 0) return n;
+  }
+  return 1;
+}
+
+export type NumericalDoParseResult =
+  | { ok: true; targetDate: string; marker: string }
+  | { ok: false; error: string };
+
+/**
+ * Parse `habitxt do <numerical-habit> [value] [date...]`: optional value (omit = add `step`),
+ * optional natural-language or ISO date (default today).
+ */
+export function parseNumericalDoCommandArgs(
+  content: string,
+  rest: string[],
+  ref: Date,
+  step: number,
+): NumericalDoParseResult {
+  const inc = `+${step}`;
+
+  if (rest.length === 0) {
+    const td = isoLocal(ref);
+    const marker = resolveNumericalDoMarker(content, td, inc);
+    return marker ? { ok: true, targetDate: td, marker } : { ok: false, error: "Could not resolve default increment." };
+  }
+
+  const first = rest[0]!.trim();
+  if (isValidNumericalValueToken(first)) {
+    const datePhrase = rest.slice(1).join(" ").trim();
+    const td = datePhrase ? resolveDoDate(datePhrase, ref) : isoLocal(ref);
+    if (datePhrase && !td) {
+      return {
+        ok: false,
+        error: `Invalid date: "${datePhrase}". Use YYYY-MM-DD or a phrase like yesterday, last Tuesday.`,
+      };
+    }
+    const targetDate = td ?? isoLocal(ref);
+    const marker = resolveNumericalDoMarker(content, targetDate, first);
+    if (!marker) {
+      return {
+        ok: false,
+        error: `Invalid numerical value "${first}". Use an integer (e.g. 5, -1), +N to add N, or omit a value to add your habit’s step (default 1).`,
+      };
+    }
+    return { ok: true, targetDate, marker };
+  }
+
+  const joined = rest.join(" ").trim();
+  const td = resolveDoDate(joined, ref);
+  if (!td) {
+    return {
+      ok: false,
+      error: `Invalid date: "${joined}". Use YYYY-MM-DD or a phrase like yesterday, last Tuesday.`,
+    };
+  }
+  const marker = resolveNumericalDoMarker(content, td, inc);
+  return marker ? { ok: true, targetDate: td, marker } : { ok: false, error: "Could not resolve default increment." };
+}
+
+/**
+ * Turn a numerical-habit CLI/API token into the marker string to store.
+ * `+3` on top of an existing `1` yields `"4"`. `+1` with no prior value yields `"1"`.
+ */
+export function resolveNumericalDoMarker(content: string, date: string, token: string): string | null {
+  const t = token.trim();
+  if (t === "") return null;
+  if (RELATIVE_NUMERICAL_ADD_RE.test(t)) {
+    const delta = parseInt(t.slice(1), 10);
+    const completions = parseCompletions(content);
+    const entry = completions.get(date);
+    let base = 0;
+    if (entry) {
+      const m = entry.marker.trim();
+      if (INTEGER_COMPLETION_MARKER_RE.test(m)) base = parseInt(m, 10);
+    }
+    return String(base + delta);
+  }
+  if (ABSOLUTE_NUMERICAL_INPUT_RE.test(t)) return t;
+  return null;
+}
+
 export { stringWidth };
 
 /** Returns the icon+name label and its visual terminal width. */
@@ -91,7 +196,7 @@ export type ApplyResult =
   | { type: "already_done"; marker: string }
   | { type: "downgrade_ignored" };
 
-const isNumericMarker = (m: string) => /^\d+$/.test(m);
+const isNumericMarker = (m: string) => INTEGER_COMPLETION_MARKER_RE.test(m);
 
 /**
  * Record a completion for `date`. Optional `note` appends text after the date; `undefined` preserves an existing note on that line.
@@ -311,7 +416,7 @@ export function filterCompletionsForStreak(
 export function numericValuesForDays(completions: Map<string, CompletionEntry>, days: Date[]): number[] {
   return days.map((d) => {
     const m = completions.get(isoLocal(d))?.marker.trim() ?? "";
-    return /^\d+$/.test(m) ? parseInt(m, 10) : 0;
+    return INTEGER_COMPLETION_MARKER_RE.test(m) ? parseInt(m, 10) : 0;
   });
 }
 
@@ -406,6 +511,8 @@ export interface TodayEntry {
   icon?: string;
   category: string | null;
   isNumerical: boolean;
+  /** When `isNumerical`: increment for `habitxt do Habit` / empty value in `today` (frontmatter `step`, default 1). */
+  numericalStep: number;
   isNegative: boolean;
   /** Set when `isNegative`: most recent slip on/before today, or `null` if never slipped. */
   negativeLastSlip: string | null | undefined;
@@ -578,6 +685,7 @@ export function loadTodayHabits(habitsDir: string, todayStr: string): TodayEntry
       icon:          parsed.data.icon as string | undefined,
       category:      (parsed.data.category as string | undefined) ?? null,
       isNumerical,
+      numericalStep: parseNumericalStep(parsed.data),
       isNegative,
       negativeLastSlip: isNegative ? neg!.lastSlip : undefined,
       thresholds,

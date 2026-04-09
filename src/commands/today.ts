@@ -18,6 +18,7 @@ import {
   completionMarkersOnly,
   TodayEntry,
   habitOnTrackForTodayView,
+  resolveNumericalDoMarker,
 } from "../lib.js";
 
 /** Colored marker cell for non-selected rows. */
@@ -191,12 +192,18 @@ export function todayCommand(program: Command) {
         const entry = entries[selected];
         const raw    = fs.readFileSync(entry.filePath, "utf8");
         const parsed = matter(raw);
+        let resolved = marker;
+        if (entry.isNumerical) {
+          const r = resolveNumericalDoMarker(parsed.content, todayStr, marker);
+          if (!r) return;
+          resolved = r;
+        }
         const stripped = entry.todayMarker !== undefined
           ? removeCompletion(parsed.content, todayStr)
           : parsed.content;
 
         const preservedNote = entry.todayNote;
-        const result = applyCompletion(stripped, todayStr, marker, CONFIG.symbols, preservedNote);
+        const result = applyCompletion(stripped, todayStr, resolved, CONFIG.symbols, preservedNote);
         if (result.type === "added" || result.type === "upgraded") {
           fs.writeFileSync(entry.filePath, matter.stringify(result.content, parsed.data));
           updateEntry(result.content);
@@ -306,14 +313,18 @@ export function todayCommand(program: Command) {
             inputMode = false;
             inputBuffer = "";
           } else if (key === "\r") {
-            // Submit
+            // Submit (empty → add habit `step`, default 1)
             const value = inputBuffer.trim();
             inputMode = false;
             inputBuffer = "";
-            if (/^\d+$/.test(value)) setMarker(value);
+            const e = entries[selected];
+            if (e.isNumerical && value === "") setMarker(`+${e.numericalStep}`);
+            else setMarker(value);
           } else if (key === "\u007f" || key === "\b") {
             inputBuffer = inputBuffer.slice(0, -1);
           } else if (/^\d$/.test(key)) {
+            inputBuffer += key;
+          } else if ((key === "-" || key === "+") && inputBuffer === "") {
             inputBuffer += key;
           }
 

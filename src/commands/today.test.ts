@@ -130,7 +130,14 @@ describe("loadTodayHabits", () => {
     });
     const entries = loadTodayHabits(dir, "2026-04-07");
     expect(entries[0].isNumerical).toBe(true);
+    expect(entries[0].numericalStep).toBe(1);
     expect(entries[0].thresholds).toEqual({ partial: 3000, full: 10000 });
+  });
+
+  it("reads numericalStep from frontmatter", () => {
+    writeHabit(dir, "Mood.md", { name: "Mood", type: "numerical", partial: 1, full: 5, step: 2 });
+    const entries = loadTodayHabits(dir, "2026-04-07");
+    expect(entries[0].numericalStep).toBe(2);
   });
 
   it("reads numerical marker as todayMarker", () => {

@@ -21,6 +21,9 @@ import {
   negativeSparklineForDays,
   isoLocal,
   resolveDoDate,
+  resolveNumericalDoMarker,
+  parseNumericalStep,
+  parseNumericalDoCommandArgs,
   habitShownInMonthAndToday,
   normalizeHabitCategory,
   habitMatchesCategoryFilter,
@@ -48,6 +51,7 @@ describe("habitOnTrackForTodayView", () => {
       filePath: "/a",
       category: null,
       isNumerical: false,
+      numericalStep: 1,
       isNegative: false,
       negativeLastSlip: undefined,
       thresholds: { partial: null, full: null },
@@ -65,6 +69,7 @@ describe("habitOnTrackForTodayView", () => {
       filePath: "/s",
       category: null,
       isNumerical: true,
+      numericalStep: 1,
       isNegative: false,
       negativeLastSlip: undefined,
       thresholds: { partial: 10_000, full: 20_000 },
@@ -82,6 +87,7 @@ describe("habitOnTrackForTodayView", () => {
       filePath: "/s",
       category: null,
       isNumerical: true,
+      numericalStep: 1,
       isNegative: false,
       negativeLastSlip: undefined,
       thresholds: { partial: 10_000, full: 20_000 },
@@ -99,6 +105,7 @@ describe("habitOnTrackForTodayView", () => {
       filePath: "/s",
       category: null,
       isNumerical: true,
+      numericalStep: 1,
       isNegative: false,
       negativeLastSlip: undefined,
       thresholds: { partial: 10_000, full: 20_000 },
@@ -116,6 +123,7 @@ describe("habitOnTrackForTodayView", () => {
       filePath: "/n",
       category: null,
       isNumerical: false,
+      numericalStep: 1,
       isNegative: true,
       negativeLastSlip: null,
       thresholds: { partial: null, full: null },
@@ -334,6 +342,96 @@ describe("resolveDoDate", () => {
 });
 
 // ---------------------------------------------------------------------------
+// resolveNumericalDoMarker
+// ---------------------------------------------------------------------------
+
+describe("resolveNumericalDoMarker", () => {
+  const date = "2026-04-08";
+
+  it("treats +N as add to existing value for that date", () => {
+    const content = "\n- [1] 2026-04-08\n";
+    expect(resolveNumericalDoMarker(content, date, "+1")).toBe("2");
+    expect(resolveNumericalDoMarker(content, date, "+9")).toBe("10");
+  });
+
+  it("treats +N as add to zero when there is no completion for that date", () => {
+    expect(resolveNumericalDoMarker("\n", date, "+1")).toBe("1");
+    expect(resolveNumericalDoMarker("\n- [5] 2026-04-07\n", date, "+3")).toBe("3");
+  });
+
+  it("ignores non-numeric existing marker as base 0 for +N", () => {
+    expect(resolveNumericalDoMarker("\n- [x] 2026-04-08\n", date, "+2")).toBe("2");
+  });
+
+  it("passes through absolute integers", () => {
+    expect(resolveNumericalDoMarker("\n", date, "7")).toBe("7");
+    expect(resolveNumericalDoMarker("\n", date, "-1")).toBe("-1");
+    expect(resolveNumericalDoMarker("\n", date, "0")).toBe("0");
+  });
+
+  it("returns null for invalid tokens", () => {
+    expect(resolveNumericalDoMarker("\n", date, "")).toBeNull();
+    expect(resolveNumericalDoMarker("\n", date, "  ")).toBeNull();
+    expect(resolveNumericalDoMarker("\n", date, "+")).toBeNull();
+    expect(resolveNumericalDoMarker("\n", date, "++1")).toBeNull();
+    expect(resolveNumericalDoMarker("\n", date, "+1a")).toBeNull();
+    expect(resolveNumericalDoMarker("\n", date, "1.5")).toBeNull();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// parseNumericalStep
+// ---------------------------------------------------------------------------
+
+describe("parseNumericalStep", () => {
+  it("defaults to 1 when absent or invalid", () => {
+    expect(parseNumericalStep({})).toBe(1);
+    expect(parseNumericalStep({ step: 0 })).toBe(1);
+    expect(parseNumericalStep({ step: -2 })).toBe(1);
+    expect(parseNumericalStep({ step: 2.5 })).toBe(1);
+    expect(parseNumericalStep({ step: "x" })).toBe(1);
+    expect(parseNumericalStep({ step: "" })).toBe(1);
+  });
+
+  it("reads positive integer from frontmatter", () => {
+    expect(parseNumericalStep({ step: 5 })).toBe(5);
+    expect(parseNumericalStep({ step: "3" })).toBe(3);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// parseNumericalDoCommandArgs
+// ---------------------------------------------------------------------------
+
+describe("parseNumericalDoCommandArgs", () => {
+  const ref = new Date(2026, 3, 9, 12, 0, 0);
+
+  it("with no rest adds step to today (default 1)", () => {
+    const r = parseNumericalDoCommandArgs("\n", [], ref, 1);
+    expect(r).toEqual({ ok: true, targetDate: "2026-04-09", marker: "1" });
+  });
+
+  it("with no rest adds custom step on top of existing value", () => {
+    const content = "\n- [4] 2026-04-09\n";
+    expect(parseNumericalDoCommandArgs(content, [], ref, 3)).toEqual({
+      ok: true,
+      targetDate: "2026-04-09",
+      marker: "7",
+    });
+  });
+
+  it("treats sole rest arg as date when not a value token", () => {
+    const r = parseNumericalDoCommandArgs("\n", ["yesterday"], ref, 1);
+    expect(r).toEqual({ ok: true, targetDate: "2026-04-08", marker: "1" });
+  });
+
+  it("still parses value then date", () => {
+    const r = parseNumericalDoCommandArgs("\n", ["+2", "yesterday"], ref, 1);
+    expect(r).toEqual({ ok: true, targetDate: "2026-04-08", marker: "2" });
+  });
+});
+
+// ---------------------------------------------------------------------------
 // applyCompletion
 // ---------------------------------------------------------------------------
 
@@ -394,6 +492,16 @@ describe("applyCompletion", () => {
     const result = applyCompletion(emptyContent, "2026-04-07", "15");
     expect(result.type).toBe("added");
     if (result.type === "added") expect(result.content).toContain("- [15] 2026-04-07");
+  });
+
+  it("adds a signed numeric entry", () => {
+    const neg = applyCompletion(emptyContent, "2026-04-07", "-1");
+    expect(neg.type).toBe("added");
+    if (neg.type === "added") expect(neg.content).toContain("- [-1] 2026-04-07");
+
+    const pos = applyCompletion(emptyContent, "2026-04-08", "+1");
+    expect(pos.type).toBe("added");
+    if (pos.type === "added") expect(pos.content).toContain("- [+1] 2026-04-08");
   });
 
   it("replaces a lower numeric value with a higher one", () => {
@@ -487,6 +595,13 @@ describe("parseCompletions", () => {
     const map = parseCompletions(content);
     expect(map.get("2026-04-06")?.marker).toBe("5");
     expect(map.get("2026-04-07")?.marker).toBe("12");
+  });
+
+  it("parses signed integer markers", () => {
+    const content = "\n- [-1] 2026-04-06\n- [+1] 2026-04-07\n";
+    const map = parseCompletions(content);
+    expect(map.get("2026-04-06")?.marker).toBe("-1");
+    expect(map.get("2026-04-07")?.marker).toBe("+1");
   });
 
   it("parses optional notes after the date", () => {
@@ -712,6 +827,12 @@ describe("numericValuesForDays", () => {
     const completions = parseCompletions("\n- [10] 2026-04-05\n- [20] 2026-04-07\n");
     const days = [new Date(2026, 3, 5), new Date(2026, 3, 6), new Date(2026, 3, 7)];
     expect(numericValuesForDays(completions, days)).toEqual([10, 0, 20]);
+  });
+
+  it("maps signed integer markers", () => {
+    const completions = parseCompletions("\n- [-1] 2026-04-05\n- [+1] 2026-04-06\n");
+    const days = [new Date(2026, 3, 5), new Date(2026, 3, 6)];
+    expect(numericValuesForDays(completions, days)).toEqual([-1, 1]);
   });
 
   it("treats non-numeric markers as 0", () => {

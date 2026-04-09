@@ -228,14 +228,33 @@ describe("habitxt REST API", () => {
       expect(res.status).toBe(400);
     });
 
-    it("returns 400 for numerical habit without marker", async () => {
+    it("increments numerical habit by 1 when marker is omitted", async () => {
       writeHabit(dir, "Steps.md", { name: "Steps", type: "numerical" });
       const res = await app.request("/habits/Steps/do", {
         method: "POST",
         headers: { ...auth(), "Content-Type": "application/json" },
         body: JSON.stringify({ date: "2026-04-08" }),
       });
-      expect(res.status).toBe(400);
+      expect(res.status).toBe(200);
+      const content = fs.readFileSync(path.join(dir, "Steps.md"), "utf8");
+      expect(content).toContain("- [1] 2026-04-08");
+    });
+
+    it("increments by frontmatter step when marker is omitted", async () => {
+      writeHabitWithCompletions(
+        dir,
+        "Mood.md",
+        { name: "Mood", type: "numerical", step: 3 },
+        ["\n- [2] 2026-04-08\n"],
+      );
+      const res = await app.request("/habits/Mood/do", {
+        method: "POST",
+        headers: { ...auth(), "Content-Type": "application/json" },
+        body: JSON.stringify({ date: "2026-04-08" }),
+      });
+      expect(res.status).toBe(200);
+      const content = fs.readFileSync(path.join(dir, "Mood.md"), "utf8");
+      expect(content).toContain("- [5] 2026-04-08");
     });
 
     it("records numerical habit with marker value", async () => {
@@ -248,6 +267,19 @@ describe("habitxt REST API", () => {
       expect(res.status).toBe(200);
       const content = fs.readFileSync(path.join(dir, "Steps.md"), "utf8");
       expect(content).toContain("- [8000] 2026-04-08");
+    });
+
+    it("records +N as increment over existing value for that date", async () => {
+      writeHabitWithCompletions(dir, "Mood.md", { name: "Mood", type: "numerical" }, ["\n- [1] 2026-04-08\n"]);
+      const res = await app.request("/habits/Mood/do", {
+        method: "POST",
+        headers: { ...auth(), "Content-Type": "application/json" },
+        body: JSON.stringify({ date: "2026-04-08", marker: "+1" }),
+      });
+      expect(res.status).toBe(200);
+      const content = fs.readFileSync(path.join(dir, "Mood.md"), "utf8");
+      expect(content).toContain("- [2] 2026-04-08");
+      expect(content).not.toContain("- [1] 2026-04-08");
     });
   });
 

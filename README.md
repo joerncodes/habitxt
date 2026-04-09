@@ -34,7 +34,10 @@ Mark a habit complete for today (or a specific date):
   habitxt do Meditate
   habitxt do Meditate 2026-04-01
   habitxt do Meditate --partial           # mark as partial (/)
-  habitxt do Steps 8500                   # numerical habit
+  habitxt do Steps                        # numerical: add step (frontmatter `step`, default 1)
+  habitxt do Steps 8500                   # numerical: set absolute value
+  habitxt do Steps +500                   # numerical: add 500 to that day’s logged value
+  habitxt do Steps yesterday              # numerical: add step for that date (chrono / ISO)
   habitxt do Steps 8500 2026-04-01        # numerical + specific date
   habitxt do Meditate --note "felt good"  # optional note (stored on the line after the date)
   habitxt do "No Alcohol"                 # negative habit: records a slip
@@ -117,8 +120,11 @@ negative habits.
 
 For numerical habits, pressing Enter prompts for a value inline and
 shows the partial and full thresholds as a hint. Backspace edits the
-input; Escape cancels without writing. **n** opens the note prompt only
-after a value is logged for today (same as `do --note`).
+input; Escape cancels without writing. Press **Enter** again with an
+empty input to add your habit’s **`step`** (frontmatter, default **1**)
+to today’s value — same as `habitxt do <habit>` with no number. **n**
+opens the note prompt only after a value is logged for today (same as
+`do --note`).
 
 On boolean or negative habits, **n** can add a note even when today is
 still empty: saving applies done (or a slip for negative) with your note.
@@ -252,6 +258,7 @@ the marker for the same day.
   type         "numerical" for numeric habits, "negative" for avoid-habits (slips)
   partial      Numerical threshold for partial credit (yellow)
   full         Numerical threshold for full credit (green)
+  step         Optional positive integer: default increment when logging without a value (`do`, `today`, API)
   min          Optional chart y-axis floor for numerical habits (`habitxt show` ASCII chart)
   max          Optional chart y-axis ceiling for numerical habits
 
@@ -267,9 +274,13 @@ Example:
 
 ### Numerical Habits
 
-Numerical habits record a measured value instead of x//:
+Numerical habits record a measured value instead of x//.
 
-  habitxt do Steps 9500
+**Ways to log:**
+
+- **Absolute:** `habitxt do Steps 9500` — sets the value for the day (integers; leading `-` allowed, e.g. `-1`).
+- **Relative:** `habitxt do Steps +500` — adds **500** to whatever is already logged that day (missing or non-numeric prior value counts as **0**). The file stores the **sum**, not the `+500` token.
+- **Default increment:** `habitxt do Steps` — adds **`step`** from frontmatter, or **1** if `step` is omitted or invalid. Same idea if the only argument is a **date** (e.g. `habitxt do Steps yesterday`): that date gets the increment.
 
 Declare thresholds in frontmatter to get color coding in `month` and `show`:
 
@@ -278,6 +289,7 @@ Declare thresholds in frontmatter to get color coding in `month` and `show`:
   type: numerical
   partial: 5000
   full: 10000
+  step: 500
   min: 0
   max: 15000
   ---
@@ -338,7 +350,8 @@ All requests require a Bearer token:
   {
     "date":   "2026-04-09",  // optional, defaults to today
     "marker": "x",           // optional for boolean habits (defaults to done symbol)
-                             // required for numerical habits (the logged value)
+                             // numerical: optional — omit to add `step` (default 1); or absolute
+                             // integer, or string "+N" to add N to that day’s value
     "note":   "felt good"    // optional
   }
 
@@ -350,6 +363,8 @@ All requests require a Bearer token:
     -H "Content-Type: application/json" \
     -d '{"marker": "8000"}' \
     http://localhost:3000/habits/Steps/do
+
+For **numerical** habits you can omit **`marker`** in the JSON body to apply the default increment (**`step`** or **1**), or set **`marker`** to a string like **`"+100"`** to add to the value already logged for that date.
 
 ## Contributing
 

@@ -7,6 +7,7 @@ const base = (over: Partial<TodayEntry>): TodayEntry => ({
   filePath: "/x.md",
   category: null,
   isNumerical: false,
+  numericalStep: 1,
   isNegative: false,
   thresholds: { partial: null, full: null },
   todayMarker: undefined,

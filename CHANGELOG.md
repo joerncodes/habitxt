@@ -2,6 +2,19 @@
 
 All notable changes to this project are documented in this file.
 
+## [1.4.4] — 2026-04-09
+
+### Added
+
+- **Numerical habits — default increment:** **`habitxt do <habit>`** with no value adds **`step`** from frontmatter, or **1** if `step` is missing or invalid (positive integer only). Same behavior for **`POST /habits/:name/do`** when **`marker`** is omitted, and in **`habitxt today`** numeric input when you press **Enter** on an empty value.
+- **Numerical habits — optional `step` frontmatter:** sets the increment used for the default check above (and exposed on **`TodayEntry.numericalStep`** for the TUI).
+- **Numerical habits — relative `+N`:** a value like **`+3`** adds **N** to the number already logged for that day (or **0** if none / non-numeric); the file stores the **sum** (e.g. existing **`1`** + **`+1`** → **`2`**). **`habitxt do mood yesterday`** with no numeric token treats **`yesterday`** as the date and applies the default increment for that day.
+- **Signed integer markers:** completion values **`7`**, **`-1`**, etc. are accepted and charted; **`+N`** remains the relative-add syntax (not a stored “positive” literal).
+
+### Changed
+
+- **Numerical `do` parsing:** value is optional; a sole argument that is not a valid value token is parsed as a **date phrase** (ISO or chrono), not rejected as a bad number.
+
 ## [1.4.3] — 2026-04-09
 
 ### Fixed

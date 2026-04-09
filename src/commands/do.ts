@@ -1,13 +1,21 @@
 import { Command } from "commander";
 import * as fs from "fs";
 import matter from "gray-matter";
-import { findHabitFile, applyCompletion, CONFIG, isoLocal, resolveDoDate } from "../lib.js";
+import {
+  findHabitFile,
+  applyCompletion,
+  CONFIG,
+  isoLocal,
+  resolveDoDate,
+  parseNumericalStep,
+  parseNumericalDoCommandArgs,
+} from "../lib.js";
 
 export function doCommand(program: Command) {
   program
     .command("do <habit> [rest...]")
     .description(
-      "Mark a habit as done for today or a specific date (YYYY-MM-DD or English phrases like yesterday, last Tuesday)",
+      "Mark a habit as done for today or a specific date (YYYY-MM-DD or English phrases like yesterday, last Tuesday). Numerical habits: omit the value to add your habit’s step (frontmatter `step`, default 1), or pass a value / +N as before.",
     )
     .option("-p, --partial", "Mark as partially completed (boolean habits only)")
     .option("-n, --note <text>", "Optional note stored after the date on the completion line")
@@ -28,23 +36,14 @@ export function doCommand(program: Command) {
       let targetDate: string;
 
       if (isNumerical) {
-        const valueToken = rest[0];
-        if (!valueToken || !/^\d+$/.test(valueToken)) {
-          console.error(`Numerical habit requires a value: habitxt do ${habit} <value> [date]`);
+        const step = parseNumericalStep(parsed.data);
+        const parsedNum = parseNumericalDoCommandArgs(parsed.content, rest, ref, step);
+        if (!parsedNum.ok) {
+          console.error(parsedNum.error);
           process.exit(1);
         }
-        marker = valueToken;
-        const datePhrase = rest.slice(1).join(" ").trim();
-        if (datePhrase) {
-          const resolved = resolveDoDate(datePhrase, ref);
-          if (!resolved) {
-            console.error(`Invalid date: "${datePhrase}". Use YYYY-MM-DD or a phrase like yesterday, last Tuesday.`);
-            process.exit(1);
-          }
-          targetDate = resolved;
-        } else {
-          targetDate = isoLocal(ref);
-        }
+        targetDate = parsedNum.targetDate;
+        marker = parsedNum.marker;
       } else {
         const datePhrase = rest.join(" ").trim();
         if (datePhrase) {
