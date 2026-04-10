@@ -13,6 +13,7 @@ import {
   habitLabel,
   filterCompletionsForStreak,
   markerLevel,
+  countCompletionLevelTotals,
   numericValuesForDays,
   lastNDaysFromToday,
   numericSparkline,
@@ -59,6 +60,7 @@ describe("habitOnTrackForTodayView", () => {
       todayNote: undefined,
       currentStreak: 1,
       longestStreak: 1,
+      completionCounts: { done: 0, partial: 0, undone: 0 },
     };
     expect(habitOnTrackForTodayView(e)).toBe(true);
   });
@@ -77,6 +79,7 @@ describe("habitOnTrackForTodayView", () => {
       todayNote: undefined,
       currentStreak: 0,
       longestStreak: 1,
+      completionCounts: { done: 0, partial: 0, undone: 0 },
     };
     expect(habitOnTrackForTodayView(e)).toBe(false);
   });
@@ -95,6 +98,7 @@ describe("habitOnTrackForTodayView", () => {
       todayNote: undefined,
       currentStreak: 0,
       longestStreak: 1,
+      completionCounts: { done: 0, partial: 0, undone: 0 },
     };
     expect(habitOnTrackForTodayView(e)).toBe(true);
   });
@@ -113,6 +117,7 @@ describe("habitOnTrackForTodayView", () => {
       todayNote: undefined,
       currentStreak: 0,
       longestStreak: 1,
+      completionCounts: { done: 0, partial: 0, undone: 0 },
     };
     expect(habitOnTrackForTodayView(e)).toBe(false);
   });
@@ -131,6 +136,7 @@ describe("habitOnTrackForTodayView", () => {
       todayNote: undefined,
       currentStreak: 0,
       longestStreak: null,
+      completionCounts: { done: 0, partial: 0, undone: 0 },
     };
     expect(habitOnTrackForTodayView(e)).toBe(true);
   });
@@ -915,6 +921,31 @@ describe("negativeSparklineForDays", () => {
     const completions = parseCompletions("\n- [x] 2026-04-07\n");
     const days = [new Date(2026, 3, 6), new Date(2026, 3, 7)];
     expect(negativeSparklineForDays(completions, days)).toBe("\u2581\u2588");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// countCompletionLevelTotals
+// ---------------------------------------------------------------------------
+
+describe("countCompletionLevelTotals", () => {
+  const sym = DEFAULT_SYMBOLS;
+  const numTh = { partial: 5, full: 10 };
+  const boolTh = { partial: null, full: null };
+
+  it("counts boolean completions", () => {
+    const c = parseCompletions("- [x] 2026-04-01\n- [/] 2026-04-02\n- [x] 2026-04-03\n");
+    expect(countCompletionLevelTotals(c, false, boolTh, sym)).toEqual({ done: 2, partial: 1, undone: 0 });
+  });
+
+  it("counts numerical tiers", () => {
+    const c = parseCompletions("- [12] 2026-04-01\n- [7] 2026-04-02\n- [3] 2026-04-03\n");
+    expect(countCompletionLevelTotals(c, false, numTh, sym)).toEqual({ done: 1, partial: 1, undone: 1 });
+  });
+
+  it("negative habit counts slips as undone only", () => {
+    const c = parseCompletions("- [x] 2026-04-01\n- [x] 2026-04-05\n");
+    expect(countCompletionLevelTotals(c, true, boolTh, sym)).toEqual({ done: 0, partial: 0, undone: 2 });
   });
 });
 

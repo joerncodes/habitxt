@@ -2,6 +2,13 @@
 
 All notable changes to this project are documented in this file.
 
+## [1.5.0] — 2026-04-10
+
+### Added
+
+- **`GET /today` — `completion` field:** each habit now includes a `completion` field with value `"done"`, `"partial"`, or `"undone"` reflecting today's state. Boolean: `x` → `done`, `/` → `partial`, none → `undone`. Numerical: uses threshold tiers (`full` → `done`, `partial`/`low` → `partial`, `none` → `undone`). Negative: no slip → `done`, slipped → `undone`.
+- **`GET /habits/:name` — full frontmatter:** all frontmatter fields (`min`, `max`, `full`, `partial`, `step`, etc.) are now included as top-level properties in the response alongside `completions`, `currentStreak`, and `longestStreak`.
+
 ## [1.4.4] — 2026-04-09
 
 ### Added

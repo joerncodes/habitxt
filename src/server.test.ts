@@ -143,6 +143,29 @@ describe("habitxt REST API", () => {
       expect(body.longestStreak).toBe(0);
     });
 
+    it("includes all frontmatter fields as top-level properties", async () => {
+      writeHabit(dir, "Steps.md", {
+        name: "Steps",
+        type: "numerical",
+        step: 2,
+        partial: 5,
+        full: 10,
+        min: 0,
+        max: 100,
+      });
+      const res = await app.request("/habits/Steps", { headers: auth() });
+      const body = await res.json() as Record<string, unknown>;
+      expect(body).toMatchObject({
+        name: "Steps",
+        type: "numerical",
+        step: 2,
+        partial: 5,
+        full: 10,
+        min: 0,
+        max: 100,
+      });
+    });
+
     it("includes completions in response", async () => {
       writeHabitWithCompletions(dir, "Meditate.md", { name: "Meditate" }, [
         "- [x] 2026-04-08",
@@ -335,6 +358,29 @@ describe("habitxt REST API", () => {
       expect(body).toHaveLength(1);
       expect(body[0].name).toBe("Meditate");
       expect(body[0].todayMarker).toBeNull();
+    });
+
+    it("returns completion=undone for habit with no entry today", async () => {
+      writeHabit(dir, "M.md", { name: "M" });
+      const res = await app.request("/today", { headers: auth() });
+      const body = await res.json() as { completion: string }[];
+      expect(body[0].completion).toBe("undone");
+    });
+
+    it("returns completion=done for boolean habit completed today", async () => {
+      const today = new Date().toISOString().slice(0, 10);
+      writeHabitWithCompletions(dir, "M.md", { name: "M" }, [`- [x] ${today}`]);
+      const res = await app.request("/today", { headers: auth() });
+      const body = await res.json() as { completion: string }[];
+      expect(body[0].completion).toBe("done");
+    });
+
+    it("returns completion=partial for boolean habit partially done today", async () => {
+      const today = new Date().toISOString().slice(0, 10);
+      writeHabitWithCompletions(dir, "M.md", { name: "M" }, [`- [/] ${today}`]);
+      const res = await app.request("/today", { headers: auth() });
+      const body = await res.json() as { completion: string }[];
+      expect(body[0].completion).toBe("partial");
     });
   });
 });

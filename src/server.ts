@@ -19,12 +19,25 @@ import {
   CONFIG,
   resolveNumericalDoMarker,
   parseNumericalStep,
+  markerLevel,
+  type TodayEntry,
   type Symbols,
 } from "./lib.js";
 
 // ---------------------------------------------------------------------------
 // App factory (testable)
 // ---------------------------------------------------------------------------
+
+function todayCompletion(e: TodayEntry, sym: Symbols): "done" | "partial" | "undone" {
+  if (e.isNegative) return e.todayMarker === undefined ? "done" : "undone";
+  if (e.isNumerical) {
+    const level = markerLevel(e.todayMarker, e.thresholds, sym);
+    return level === "full" ? "done" : level === "none" ? "undone" : "partial";
+  }
+  if (e.todayMarker === sym.done) return "done";
+  if (e.todayMarker === sym.partial) return "partial";
+  return "undone";
+}
 
 export function createApp(habitsDir: string, symbols: Symbols, apiKey: string) {
   const app = new Hono();
@@ -94,11 +107,7 @@ export function createApp(habitsDir: string, symbols: Symbols, apiKey: string) {
     }
 
     return c.json({
-      name: typeof parsed.data.name === "string" ? parsed.data.name : c.req.param("name"),
-      icon: typeof parsed.data.icon === "string" ? parsed.data.icon : null,
-      category: typeof parsed.data.category === "string" && parsed.data.category.trim() ? parsed.data.category.trim() : null,
-      type: typeof parsed.data.type === "string" ? parsed.data.type : "boolean",
-      description: typeof parsed.data.description === "string" ? parsed.data.description : null,
+      ...(parsed.data as Record<string, unknown>),
       completions: completionsObj,
       currentStreak: calcCurrentStreak(streakMap, today),
       longestStreak: calcLongestStreak(streakMap),
@@ -188,6 +197,7 @@ export function createApp(habitsDir: string, symbols: Symbols, apiKey: string) {
       type: e.isNumerical ? "numerical" : e.isNegative ? "negative" : "boolean",
       todayMarker: e.todayMarker ?? null,
       todayNote: e.todayNote ?? null,
+      completion: todayCompletion(e, symbols),
       currentStreak: e.currentStreak,
       longestStreak: e.longestStreak,
     })));

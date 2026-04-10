@@ -472,6 +472,41 @@ export function markerLevel(
   return "low";
 }
 
+/** Lifetime totals from parsed completion lines (one row per logged day). */
+export interface CompletionLevelCounts {
+  done: number;
+  partial: number;
+  undone: number;
+}
+
+/**
+ * Classifies each stored completion: boolean/numerical — `done` = full, `partial` = partial,
+ * `undone` = low / non-qualifying; negative — only slips are logged, so `undone` counts slips and `done`/`partial` are 0.
+ */
+export function countCompletionLevelTotals(
+  completions: Map<string, CompletionEntry>,
+  isNegative: boolean,
+  thresholds: Thresholds,
+  symbols: Symbols,
+): CompletionLevelCounts {
+  let done = 0;
+  let partial = 0;
+  let undone = 0;
+  if (isNegative) {
+    for (const e of completions.values()) {
+      if ((e.marker?.trim() ?? "") !== "") undone++;
+    }
+    return { done: 0, partial: 0, undone };
+  }
+  for (const e of completions.values()) {
+    const level = markerLevel(e.marker, thresholds, symbols);
+    if (level === "full") done++;
+    else if (level === "partial") partial++;
+    else undone++;
+  }
+  return { done, partial, undone };
+}
+
 /** Per-day `markerLevel` for a day list (oldest first). */
 export function markerLevelsForDays(
   completions: Map<string, CompletionEntry>,
@@ -523,6 +558,8 @@ export interface TodayEntry {
   currentStreak: number;
   /** Longest streak of qualifying days (boolean/numerical) or longest clean run (negative). `null` only when negative and never slipped. */
   longestStreak: number | null;
+  /** Lifetime counts from completion lines — see `countCompletionLevelTotals`. */
+  completionCounts: CompletionLevelCounts;
 }
 
 /**
@@ -693,6 +730,7 @@ export function loadTodayHabits(habitsDir: string, todayStr: string): TodayEntry
       todayNote:     todayEntry?.note,
       currentStreak: isNegative ? neg!.days : calcCurrentStreak(streakCompletions, today),
       longestStreak,
+      completionCounts: countCompletionLevelTotals(completions, isNegative, thresholds, CONFIG.symbols),
     });
   }
 
