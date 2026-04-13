@@ -14,6 +14,7 @@ _habitxt() {
     local -a cmds
     cmds=(
       'do:Mark a habit as done'
+      'fail:Fail today early (red [f] in today until midnight)'
       'show:Show habit details and streaks'
       'archive:Archive a habit'
       'hide:Hide a habit from month and today'
@@ -27,7 +28,7 @@ _habitxt() {
     _describe 'command' cmds
   elif [[ $CURRENT -eq 3 ]]; then
     case $words[2] in
-      do|show|archive|hide|unhide)
+      do|show|archive|hide|unhide|fail)
         _habitxt_habits
         ;;
     esac
@@ -45,8 +46,8 @@ _habitxt "$@"`,
 _habitxt() {
   local cmd="\${COMP_WORDS[1]}"
   if [[ $COMP_CWORD -eq 1 ]]; then
-    COMPREPLY=($(compgen -W "do show archive hide unhide month year streak create completions" -- "\${COMP_WORDS[1]}"))
-  elif [[ $COMP_CWORD -eq 2 && ( "$cmd" == "do" || "$cmd" == "show" || "$cmd" == "archive" || "$cmd" == "hide" || "$cmd" == "unhide" ) ]]; then
+    COMPREPLY=($(compgen -W "do fail show archive hide unhide month year streak create completions" -- "\${COMP_WORDS[1]}"))
+  elif [[ $COMP_CWORD -eq 2 && ( "$cmd" == "do" || "$cmd" == "fail" || "$cmd" == "show" || "$cmd" == "archive" || "$cmd" == "hide" || "$cmd" == "unhide" ) ]]; then
     _habitxt_habits
   fi
 }
@@ -59,6 +60,7 @@ end
 
 complete -c habitxt -f
 complete -c habitxt -n '__fish_use_subcommand' -a do      -d 'Mark a habit as done'
+complete -c habitxt -n '__fish_use_subcommand' -a fail   -d 'Fail today early (red [f] in today until midnight)'
 complete -c habitxt -n '__fish_use_subcommand' -a show    -d 'Show habit details and streaks'
 complete -c habitxt -n '__fish_use_subcommand' -a archive -d 'Archive a habit'
 complete -c habitxt -n '__fish_use_subcommand' -a hide    -d 'Hide a habit from month and today'
@@ -68,7 +70,7 @@ complete -c habitxt -n '__fish_use_subcommand' -a year    -d 'Calendar year heat
 complete -c habitxt -n '__fish_use_subcommand' -a streak  -d 'Rank habits by current streak'
 complete -c habitxt -n '__fish_use_subcommand' -a create  -d 'Create a new habit interactively'
 complete -c habitxt -n '__fish_use_subcommand' -a completions -d 'Output shell completion script'
-complete -c habitxt -n '__fish_seen_subcommand_from do show archive hide unhide' -a '(__habitxt_habits)'`,
+complete -c habitxt -n '__fish_seen_subcommand_from do fail show archive hide unhide' -a '(__habitxt_habits)'`,
 };
 
 const installInstructions: Record<string, string> = {

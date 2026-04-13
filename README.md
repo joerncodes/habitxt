@@ -48,6 +48,14 @@ until you run `unhide` or edit frontmatter. For **negative** habits, `do`
 records a slip (same file format as a completion); messaging refers to slips
 instead of “done”.
 
+### fail
+
+Mark today as failed early (same effect as **`f`** in **`habitxt today`**):
+
+  habitxt fail IF
+
+For **boolean** and **numerical** habits, clears today’s completion line if present. For **negative** habits, records a slip for today. Sets frontmatter **`prefailed`** to today’s local date (**`YYYY-MM-DD`**). In **`habitxt today`**, that row shows a red **`[f]`** and dimmed text; it does not count as on track until **`prefailed`** is cleared (e.g. **`d`** to clear today, or logging a completion again).
+
 ### show
 
 Show the last 10 days and streak info for one habit:
@@ -111,12 +119,13 @@ category, with a live completion counter at the top. Key bindings:
   n             note: set or edit today’s note (Enter save, Esc cancel); if today is empty, marks done and adds the note
   x             mark fully done, or record a slip (negative)
   /             toggle partial completion (partial ↔ undone); skipped for negative habits
-  d             clear today's mark (or clear today's slip for negative habits)
+  f             fail today early (sets `prefailed`; red [f] + dimmed row until local midnight)
+  d             clear today's mark (or clear today's slip for negative habits); also clears `prefailed` when it matches today
   q / Escape    quit
 
 The header counts **on track today**: any completion for boolean habits, **full**
 threshold (green tier) for numerical habits, and **clean** (no slip) rows for
-negative habits.
+negative habits. A habit with **`prefailed`** set to today’s date is **not** on track; the UI shows **`[f]`** in red with a dimmed habit name and extra text.
 
 For numerical habits, pressing Enter prompts for a value inline and
 shows the partial and full thresholds as a hint. Backspace edits the
@@ -169,7 +178,7 @@ Print a shell completion script to stdout:
   habitxt completions --shell fish
 
 See the output header for one-time install instructions per shell.
-After setup, pressing Tab completes habit names for `do`, `show`, `archive`,
+After setup, pressing Tab completes habit names for `do`, `fail`, `show`, `archive`,
 `hide`, and `unhide` in the generated scripts (see the script for your shell).
 
 ## Configuration
@@ -261,6 +270,7 @@ the marker for the same day.
   step         Optional positive integer: default increment when logging without a value (`do`, `today`, API)
   min          Optional chart y-axis floor for numerical habits (`habitxt show` ASCII chart)
   max          Optional chart y-axis ceiling for numerical habits
+  prefailed    Optional ISO date (`YYYY-MM-DD`): when it matches today, `habitxt today` shows [f] (red) and a dimmed row; set by `fail` / `f` (cleared when you clear today or log a completion for today)
 
 Example:
 
@@ -343,7 +353,12 @@ All requests require a Bearer token:
   GET    /habits/:name             Habit detail, completions, and streaks
   POST   /habits/:name/do          Record a completion
   DELETE /habits/:name/do/:date    Remove a completion for a date
-  GET    /today                    All open habits with today's status
+  GET    /today                    All open habits with today's status (`prefailedToday`, `completion`, etc.)
+
+**`GET /today`** returns an array of objects with **`name`**, **`icon`**, **`category`**, **`type`**
+(`boolean` | `numerical` | `negative`), **`todayMarker`**, **`todayNote`**, **`prefailedToday`**
+(boolean — frontmatter **`prefailed`** matches today), **`completion`** (`done` | `partial` | `undone`),
+**`currentStreak`**, and **`longestStreak`**. When **`prefailedToday`** is true, **`completion`** is **`undone`**.
 
 ### Request body for POST /habits/:name/do
 

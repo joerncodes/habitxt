@@ -15,6 +15,7 @@ const base = (over: Partial<TodayEntry>): TodayEntry => ({
   currentStreak: 0,
   longestStreak: 0,
   completionCounts: { done: 0, partial: 0, undone: 0 },
+  prefailedToday: false,
   ...over,
 });
 

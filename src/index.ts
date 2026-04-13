@@ -13,6 +13,7 @@ import { archiveCommand } from "./commands/archive.js";
 import { hideCommand } from "./commands/hide.js";
 import { editCommand } from "./commands/edit.js";
 import { todayCommand } from "./commands/today.js";
+import { failCommand } from "./commands/fail.js";
 import { streakCommand } from "./commands/streak.js";
 import { yearCommand } from "./commands/year.js";
 
@@ -31,6 +32,7 @@ archiveCommand(program);
 hideCommand(program);
 editCommand(program);
 todayCommand(program);
+failCommand(program);
 streakCommand(program);
 yearCommand(program);
 

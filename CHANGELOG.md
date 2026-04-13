@@ -2,6 +2,19 @@
 
 All notable changes to this project are documented in this file.
 
+## [1.6.0] — 2026-04-13
+
+### Added
+
+- **`habitxt fail <habit>`:** mark today as failed early (boolean/numerical: clears today’s completion line; negative: records today’s slip). Sets frontmatter **`prefailed: YYYY-MM-DD`** for the local calendar day.
+- **`habitxt today` — `f`:** same as **`fail`** for the selected habit. Prefailed rows show a red **`[f]`** marker and dimmed label/extra text; they do not count toward the header “on track” tally until you clear **`d`** or log a completion again (which clears **`prefailed`** for that day).
+- **`TodayEntry.prefailedToday`** and **`buildTodayEntryFromFile`** (`lib.ts`) for the TUI and API.
+- **`GET /today` — `prefailedToday`:** boolean per habit. **`completion`** is **`undone`** when **`prefailedToday`** is true.
+
+### Fixed
+
+- **`config` tests:** isolate **`HABITXT_DIR`** so **`resolveHabitsDir` / `resolveConfig`** tests pass when the variable is set in the environment (explicit `undefined` still applied the default initializer and picked up the outer env).
+
 ## [1.5.0] — 2026-04-10
 
 ### Added

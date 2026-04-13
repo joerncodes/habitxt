@@ -3,6 +3,7 @@ import * as fs from "fs";
 import * as os from "os";
 import * as path from "path";
 import { createApp } from "./server.js";
+import { isoLocal } from "./lib.js";
 
 const TEST_KEY = "test-key";
 const SYMBOLS = { done: "x", partial: "/" };
@@ -381,6 +382,18 @@ describe("habitxt REST API", () => {
       const res = await app.request("/today", { headers: auth() });
       const body = await res.json() as { completion: string }[];
       expect(body[0].completion).toBe("partial");
+    });
+
+    it("includes prefailedToday on habits failed early for today", async () => {
+      const today = isoLocal(new Date());
+      writeHabit(dir, "Gone.md", { name: "Gone", prefailed: today });
+      writeHabit(dir, "Here.md", { name: "Here" });
+      const res = await app.request("/today", { headers: auth() });
+      const body = await res.json() as { name: string; prefailedToday: boolean }[];
+      expect(body.map((h) => h.name).sort()).toEqual(["Gone", "Here"]);
+      const gone = body.find((h) => h.name === "Gone");
+      expect(gone?.prefailedToday).toBe(true);
+      expect(body.find((h) => h.name === "Here")?.prefailedToday).toBe(false);
     });
   });
 });

@@ -11,18 +11,17 @@ import {
   removeCompletion,
   habitLabel,
   markerLevel,
-  parseCompletions,
-  filterCompletionsForStreak,
-  calcCurrentStreak,
-  calcNegativeStreak,
-  completionMarkersOnly,
   TodayEntry,
   habitOnTrackForTodayView,
   resolveNumericalDoMarker,
+  applyPrefailForToday,
+  frontmatterWithoutPrefailedForToday,
+  buildTodayEntryFromFile,
 } from "../lib.js";
 
 /** Colored marker cell for non-selected rows. */
 function coloredCell(entry: TodayEntry): string {
+  if (entry.prefailedToday) return chalk.red("[f]");
   const m = entry.todayMarker;
   const cell = `[${m ?? " "}]`;
   if (entry.isNegative) {
@@ -38,6 +37,7 @@ function coloredCell(entry: TodayEntry): string {
 
 /** Plain (no ANSI) marker cell for selected rows (inverse provides the highlight). */
 function plainCell(entry: TodayEntry): string {
+  if (entry.prefailedToday) return "[f]";
   return `[${entry.todayMarker ?? " "}]`;
 }
 
@@ -124,8 +124,19 @@ export function todayCommand(program: Command) {
           const extra   = extraText(entry);
 
           if (i === selected) {
-            const line = `  ${plainCell(entry)} ${label}${padding}${extra}`;
-            process.stdout.write(chalk.inverse(line) + "\n");
+            if (entry.prefailedToday) {
+              process.stdout.write(
+                "  " +
+                  chalk.inverse(chalk.red(plainCell(entry)) + chalk.dim(` ${label}${padding}${extra}`)) +
+                  "\n",
+              );
+            } else {
+              const line = `  ${plainCell(entry)} ${label}${padding}${extra}`;
+              process.stdout.write(chalk.inverse(line) + "\n");
+            }
+          } else if (entry.prefailedToday) {
+            const dimRest = chalk.dim(`${label}${padding}${extra}`);
+            process.stdout.write(`  ${coloredCell(entry)} ${dimRest}\n`);
           } else {
             const dim = extra ? chalk.dim(extra) : "";
             process.stdout.write(`  ${coloredCell(entry)} ${label}${padding}${dim}\n`);
@@ -148,7 +159,7 @@ export function todayCommand(program: Command) {
         } else {
           process.stdout.write(
             chalk.dim(
-              "↑↓/jk navigate · Enter toggle · n note · / partial · d clear today · q quit",
+              "↑↓/jk navigate · Enter toggle · n note · / partial · f fail · d clear today · q quit",
             ) + "\n",
           );
         }
@@ -157,31 +168,12 @@ export function todayCommand(program: Command) {
       // -----------------------------------------------------------------
       // Actions
       // -----------------------------------------------------------------
-      const today = new Date(todayStr + "T00:00:00");
 
-      /** Recompute streak and update the selected entry in-place. */
-      const updateEntry = (newBodyContent: string) => {
-        const entry       = entries[selected];
-        const completions = parseCompletions(newBodyContent);
-        const todayData   = completions.get(todayStr);
-        if (entry.isNegative) {
-          const neg = calcNegativeStreak(completionMarkersOnly(completions), today);
-          entries[selected] = {
-            ...entry,
-            todayMarker:      todayData?.marker,
-            todayNote:        todayData?.note,
-            currentStreak:    neg.days,
-            negativeLastSlip: neg.lastSlip,
-          };
-          return;
-        }
-        const streakCompletions = filterCompletionsForStreak(completions, entry.thresholds.partial);
-        entries[selected] = {
-          ...entry,
-          todayMarker:   todayData?.marker,
-          todayNote:     todayData?.note,
-          currentStreak: calcCurrentStreak(streakCompletions, today),
-        };
+      /** Reload the selected row from disk after a write. */
+      const syncEntryFromDisk = () => {
+        const path = entries[selected].filePath;
+        const rebuilt = buildTodayEntryFromFile(path, todayStr);
+        if (rebuilt) entries[selected] = rebuilt;
       };
 
       /**
@@ -205,8 +197,9 @@ export function todayCommand(program: Command) {
         const preservedNote = entry.todayNote;
         const result = applyCompletion(stripped, todayStr, resolved, CONFIG.symbols, preservedNote);
         if (result.type === "added" || result.type === "upgraded") {
-          fs.writeFileSync(entry.filePath, matter.stringify(result.content, parsed.data));
-          updateEntry(result.content);
+          const data = frontmatterWithoutPrefailedForToday(parsed.data as Record<string, unknown>, todayStr);
+          fs.writeFileSync(entry.filePath, matter.stringify(result.content, data));
+          syncEntryFromDisk();
         }
       };
 
@@ -217,7 +210,7 @@ export function todayCommand(program: Command) {
       const applyTodayNote = (noteText: string) => {
         const entry = entries[selected];
         const trimmed = noteText.trim();
-        if (entry.todayMarker === undefined && trimmed === "") return;
+        if (entry.todayMarker === undefined && trimmed === "" && !entry.prefailedToday) return;
 
         const raw    = fs.readFileSync(entry.filePath, "utf8");
         const parsed = matter(raw);
@@ -231,21 +224,43 @@ export function todayCommand(program: Command) {
 
         const result = applyCompletion(stripped, todayStr, marker, CONFIG.symbols, noteArg);
         if (result.type === "added" || result.type === "upgraded") {
-          fs.writeFileSync(entry.filePath, matter.stringify(result.content, parsed.data));
-          updateEntry(result.content);
+          const data = frontmatterWithoutPrefailedForToday(parsed.data as Record<string, unknown>, todayStr);
+          fs.writeFileSync(entry.filePath, matter.stringify(result.content, data));
+          syncEntryFromDisk();
         }
       };
 
-      /** Remove today's completion (if any). */
+      /** Remove today's completion (if any) and today’s `prefailed` flag when present. */
       const clearMarker = () => {
         const entry = entries[selected];
-        if (entry.todayMarker === undefined) return;
+        if (entry.todayMarker === undefined && !entry.prefailedToday) return;
 
-        const raw     = fs.readFileSync(entry.filePath, "utf8");
-        const parsed  = matter(raw);
-        const newBody = removeCompletion(parsed.content, todayStr);
-        fs.writeFileSync(entry.filePath, matter.stringify(newBody, parsed.data));
-        updateEntry(newBody);
+        const raw    = fs.readFileSync(entry.filePath, "utf8");
+        const parsed = matter(raw);
+        const newBody =
+          entry.todayMarker !== undefined
+            ? removeCompletion(parsed.content, todayStr)
+            : parsed.content;
+        const data = frontmatterWithoutPrefailedForToday(parsed.data as Record<string, unknown>, todayStr);
+        fs.writeFileSync(entry.filePath, matter.stringify(newBody, data));
+        syncEntryFromDisk();
+      };
+
+      /** Prefail for today — red `[f]` and dimmed row until midnight; see `habitxt fail`. */
+      const failForToday = () => {
+        if (entries.length === 0) return;
+        const entry = entries[selected];
+        const raw   = fs.readFileSync(entry.filePath, "utf8");
+        const parsed = matter(raw);
+        const { body, frontmatter } = applyPrefailForToday(
+          parsed.content,
+          parsed.data as Record<string, unknown>,
+          todayStr,
+          entry.isNegative,
+          CONFIG.symbols,
+        );
+        fs.writeFileSync(entry.filePath, matter.stringify(body, frontmatter));
+        syncEntryFromDisk();
       };
 
       /** Enter on boolean: none/partial → full; full → remove. */
@@ -361,6 +376,8 @@ export function todayCommand(program: Command) {
           if (!entries[selected].isNumerical && !entries[selected].isNegative) togglePartial();
         } else if (key === "d") {
           clearMarker();
+        } else if (key === "f" || key === "F") {
+          failForToday();
         }
 
         render();

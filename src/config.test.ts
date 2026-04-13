@@ -10,13 +10,18 @@ function writeToml(dir: string, filename: string, content: string) {
 
 describe("resolveHabitsDir", () => {
   let tmp: string;
+  let prevHabitxtDir: string | undefined;
 
   beforeEach(() => {
+    prevHabitxtDir = process.env.HABITXT_DIR;
+    delete process.env.HABITXT_DIR;
     tmp = fs.mkdtempSync(path.join(os.tmpdir(), "habitxt-cfg-"));
   });
 
   afterEach(() => {
     fs.rmSync(tmp, { recursive: true });
+    if (prevHabitxtDir === undefined) delete process.env.HABITXT_DIR;
+    else process.env.HABITXT_DIR = prevHabitxtDir;
   });
 
   it("falls back to <cwd>/habits when nothing is configured", () => {
@@ -69,13 +74,18 @@ describe("resolveHabitsDir", () => {
 
 describe("resolveConfig weekStart", () => {
   let tmp: string;
+  let prevHabitxtDir: string | undefined;
 
   beforeEach(() => {
+    prevHabitxtDir = process.env.HABITXT_DIR;
+    delete process.env.HABITXT_DIR;
     tmp = fs.mkdtempSync(path.join(os.tmpdir(), "habitxt-cfg-"));
   });
 
   afterEach(() => {
     fs.rmSync(tmp, { recursive: true });
+    if (prevHabitxtDir === undefined) delete process.env.HABITXT_DIR;
+    else process.env.HABITXT_DIR = prevHabitxtDir;
   });
 
   it("defaults weekStart to sun", () => {

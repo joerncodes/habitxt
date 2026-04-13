@@ -123,6 +123,24 @@ describe("loadTodayHabits", () => {
     expect(entries[0].name).toBe("Active");
   });
 
+  it("marks prefailed when frontmatter matches today", () => {
+    writeHabit(dir, "IF.md", { name: "IF", prefailed: "2026-04-07" });
+    writeHabit(dir, "Other.md", { name: "Other" });
+    const entries = loadTodayHabits(dir, "2026-04-07");
+    expect(entries).toHaveLength(2);
+    const ifEntry = entries.find((e) => e.name === "IF");
+    expect(ifEntry?.prefailedToday).toBe(true);
+    expect(entries.find((e) => e.name === "Other")?.prefailedToday).toBe(false);
+  });
+
+  it("sets prefailedToday false when prefailed is a past day", () => {
+    writeHabit(dir, "IF.md", { name: "IF", prefailed: "2026-04-06" });
+    const entries = loadTodayHabits(dir, "2026-04-07");
+    expect(entries).toHaveLength(1);
+    expect(entries[0].name).toBe("IF");
+    expect(entries[0].prefailedToday).toBe(false);
+  });
+
   it("reads isNumerical and thresholds from numerical habit", () => {
     writeHabit(dir, "Steps.md", {
       name:    "Steps",

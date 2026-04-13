@@ -29,6 +29,7 @@ import {
 // ---------------------------------------------------------------------------
 
 function todayCompletion(e: TodayEntry, sym: Symbols): "done" | "partial" | "undone" {
+  if (e.prefailedToday) return "undone";
   if (e.isNegative) return e.todayMarker === undefined ? "done" : "undone";
   if (e.isNumerical) {
     const level = markerLevel(e.todayMarker, e.thresholds, sym);
@@ -197,6 +198,7 @@ export function createApp(habitsDir: string, symbols: Symbols, apiKey: string) {
       type: e.isNumerical ? "numerical" : e.isNegative ? "negative" : "boolean",
       todayMarker: e.todayMarker ?? null,
       todayNote: e.todayNote ?? null,
+      prefailedToday: e.prefailedToday,
       completion: todayCompletion(e, symbols),
       currentStreak: e.currentStreak,
       longestStreak: e.longestStreak,

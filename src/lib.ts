@@ -560,6 +560,8 @@ export interface TodayEntry {
   longestStreak: number | null;
   /** Lifetime counts from completion lines — see `countCompletionLevelTotals`. */
   completionCounts: CompletionLevelCounts;
+  /** Frontmatter `prefailed` matches today — failed early; `today` UI shows a red `[f]` and dimmed row. */
+  prefailedToday: boolean;
 }
 
 /**
@@ -568,6 +570,7 @@ export interface TodayEntry {
  * negative = clean (no slip today).
  */
 export function habitOnTrackForTodayView(e: TodayEntry, symbols: Symbols = DEFAULT_SYMBOLS): boolean {
+  if (e.prefailedToday) return false;
   if (e.isNegative) {
     return e.todayMarker === undefined;
   }
@@ -580,6 +583,58 @@ export function habitOnTrackForTodayView(e: TodayEntry, symbols: Symbols = DEFAU
 /** Habits with status `archived` or `hidden` are omitted from `month` and `today`. */
 export function habitShownInMonthAndToday(status: unknown): boolean {
   return status !== "archived" && status !== "hidden";
+}
+
+/**
+ * Frontmatter `prefailed: YYYY-MM-DD` — failed early for this calendar day (`today` shows a red `[f]` and a dimmed row until local midnight).
+ * Stale dates (not today) are ignored for display but may remain in the file until edited.
+ */
+export function parsePrefailedDateStr(data: Record<string, unknown>): string | null {
+  const raw = data.prefailed;
+  if (raw === undefined || raw === null) return null;
+  if (raw instanceof Date && !Number.isNaN(raw.getTime())) return isoLocal(raw);
+  if (typeof raw === "string") {
+    const t = raw.trim();
+    if (ISO_DATE_RE.test(t)) return t;
+  }
+  return null;
+}
+
+/** True when frontmatter `prefailed` is the same local calendar day as `todayStr`. */
+export function habitPrefailedForTodayList(data: Record<string, unknown>, todayStr: string): boolean {
+  const p = parsePrefailedDateStr(data);
+  return p !== null && p === todayStr;
+}
+
+/** Drop `prefailed` when it matches today (e.g. after clearing today’s completion in `today`). */
+export function frontmatterWithoutPrefailedForToday(
+  data: Record<string, unknown>,
+  todayStr: string,
+): Record<string, unknown> {
+  if (!habitPrefailedForTodayList(data, todayStr)) return { ...data };
+  const next = { ...data };
+  delete next.prefailed;
+  return next;
+}
+
+/**
+ * Record a prefail for `todayStr`: sets frontmatter `prefailed`, removes today’s line for boolean/numerical,
+ * or ensures a negative slip today. Idempotent for body when already in the target state.
+ */
+export function applyPrefailForToday(
+  bodyContent: string,
+  frontmatter: Record<string, unknown>,
+  todayStr: string,
+  isNegative: boolean,
+  symbols: Symbols = DEFAULT_SYMBOLS,
+): { body: string; frontmatter: Record<string, unknown> } {
+  const merged: Record<string, unknown> = { ...frontmatter, prefailed: todayStr };
+  if (isNegative) {
+    const r = applyCompletion(bodyContent, todayStr, symbols.done, symbols);
+    if (r.type === "added" || r.type === "upgraded") return { body: r.content, frontmatter: merged };
+    return { body: bodyContent, frontmatter: merged };
+  }
+  return { body: removeCompletion(bodyContent, todayStr), frontmatter: merged };
 }
 
 /** Frontmatter `category`: `null` when missing or blank. */
@@ -686,6 +741,50 @@ export const HEATMAP_RGB: readonly [number, number, number][] = [
 ];
 
 /**
+ * Build one `TodayEntry` from a habit file path (reads disk). Returns `null` if archived/hidden/missing.
+ */
+export function buildTodayEntryFromFile(filePath: string, todayStr: string): TodayEntry | null {
+  const raw = fs.readFileSync(filePath, "utf8");
+  const parsed = matter(raw);
+  if (!habitShownInMonthAndToday(parsed.data.status)) return null;
+
+  const today = new Date(todayStr + "T00:00:00");
+  const isNegative = parsed.data.type === "negative";
+  const isNumerical = !isNegative && parsed.data.type === "numerical";
+  const thresholds: Thresholds = {
+    partial: isNumerical ? (parsed.data.partial as number ?? null) : null,
+    full:    isNumerical ? (parsed.data.full    as number ?? null) : null,
+  };
+  const completions = parseCompletions(parsed.content);
+  const streakCompletions = filterCompletionsForStreak(completions, thresholds.partial);
+  const neg = isNegative ? calcNegativeStreak(streakCompletions, today) : null;
+  const longestStreak = isNegative
+    ? calcLongestNegativeCleanStreak(streakCompletions, today)
+    : calcLongestStreak(streakCompletions);
+
+  const todayEntry = completions.get(todayStr);
+  const prefailedToday = habitPrefailedForTodayList(parsed.data as Record<string, unknown>, todayStr);
+
+  return {
+    name:          (parsed.data.name as string | undefined) ?? path.basename(filePath, ".md"),
+    filePath,
+    icon:          parsed.data.icon as string | undefined,
+    category:      (parsed.data.category as string | undefined) ?? null,
+    isNumerical,
+    numericalStep: parseNumericalStep(parsed.data),
+    isNegative,
+    negativeLastSlip: isNegative ? neg!.lastSlip : undefined,
+    thresholds,
+    todayMarker:   todayEntry?.marker,
+    todayNote:     todayEntry?.note,
+    currentStreak: isNegative ? neg!.days : calcCurrentStreak(streakCompletions, today),
+    longestStreak,
+    completionCounts: countCompletionLevelTotals(completions, isNegative, thresholds, CONFIG.symbols),
+    prefailedToday,
+  };
+}
+
+/**
  * Loads habits that appear in `today` (open habits only — not archived or hidden)
  * and returns them as TodayEntry[], sorted by category (alphabetically,
  * uncategorized last), preserving file order within each category.
@@ -693,45 +792,12 @@ export const HEATMAP_RGB: readonly [number, number, number][] = [
 export function loadTodayHabits(habitsDir: string, todayStr: string): TodayEntry[] {
   if (!fs.existsSync(habitsDir)) return [];
   const files = fs.readdirSync(habitsDir).filter((f) => f.endsWith(".md")).sort();
-  const today = new Date(todayStr + "T00:00:00");
   const entries: TodayEntry[] = [];
 
   for (const file of files) {
     const filePath = path.join(habitsDir, file);
-    const raw = fs.readFileSync(filePath, "utf8");
-    const parsed = matter(raw);
-    if (!habitShownInMonthAndToday(parsed.data.status)) continue;
-
-    const isNegative = parsed.data.type === "negative";
-    const isNumerical = !isNegative && parsed.data.type === "numerical";
-    const thresholds: Thresholds = {
-      partial: isNumerical ? (parsed.data.partial as number ?? null) : null,
-      full:    isNumerical ? (parsed.data.full    as number ?? null) : null,
-    };
-    const completions = parseCompletions(parsed.content);
-    const streakCompletions = filterCompletionsForStreak(completions, thresholds.partial);
-    const neg = isNegative ? calcNegativeStreak(streakCompletions, today) : null;
-    const longestStreak = isNegative
-      ? calcLongestNegativeCleanStreak(streakCompletions, today)
-      : calcLongestStreak(streakCompletions);
-
-    const todayEntry = completions.get(todayStr);
-    entries.push({
-      name:          (parsed.data.name as string | undefined) ?? path.basename(file, ".md"),
-      filePath,
-      icon:          parsed.data.icon as string | undefined,
-      category:      (parsed.data.category as string | undefined) ?? null,
-      isNumerical,
-      numericalStep: parseNumericalStep(parsed.data),
-      isNegative,
-      negativeLastSlip: isNegative ? neg!.lastSlip : undefined,
-      thresholds,
-      todayMarker:   todayEntry?.marker,
-      todayNote:     todayEntry?.note,
-      currentStreak: isNegative ? neg!.days : calcCurrentStreak(streakCompletions, today),
-      longestStreak,
-      completionCounts: countCompletionLevelTotals(completions, isNegative, thresholds, CONFIG.symbols),
-    });
+    const entry = buildTodayEntryFromFile(filePath, todayStr);
+    if (entry) entries.push(entry);
   }
 
   // Sort: categorized entries alphabetically by category, uncategorized last,

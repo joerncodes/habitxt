@@ -26,6 +26,10 @@ import {
   parseNumericalStep,
   parseNumericalDoCommandArgs,
   habitShownInMonthAndToday,
+  parsePrefailedDateStr,
+  habitPrefailedForTodayList,
+  frontmatterWithoutPrefailedForToday,
+  applyPrefailForToday,
   normalizeHabitCategory,
   habitMatchesCategoryFilter,
   completionMarkersOnly,
@@ -61,8 +65,29 @@ describe("habitOnTrackForTodayView", () => {
       currentStreak: 1,
       longestStreak: 1,
       completionCounts: { done: 0, partial: 0, undone: 0 },
+      prefailedToday: false,
     };
     expect(habitOnTrackForTodayView(e)).toBe(true);
+  });
+
+  it("does not count as on track when prefailed for today", () => {
+    const e: TodayEntry = {
+      name: "IF",
+      filePath: "/if",
+      category: null,
+      isNumerical: false,
+      numericalStep: 1,
+      isNegative: false,
+      negativeLastSlip: undefined,
+      thresholds: { partial: null, full: null },
+      todayMarker: "x",
+      todayNote: undefined,
+      currentStreak: 1,
+      longestStreak: 1,
+      completionCounts: { done: 0, partial: 0, undone: 0 },
+      prefailedToday: true,
+    };
+    expect(habitOnTrackForTodayView(e)).toBe(false);
   });
 
   it("does not count numerical habit until full threshold is reached", () => {
@@ -80,6 +105,7 @@ describe("habitOnTrackForTodayView", () => {
       currentStreak: 0,
       longestStreak: 1,
       completionCounts: { done: 0, partial: 0, undone: 0 },
+      prefailedToday: false,
     };
     expect(habitOnTrackForTodayView(e)).toBe(false);
   });
@@ -99,6 +125,7 @@ describe("habitOnTrackForTodayView", () => {
       currentStreak: 0,
       longestStreak: 1,
       completionCounts: { done: 0, partial: 0, undone: 0 },
+      prefailedToday: false,
     };
     expect(habitOnTrackForTodayView(e)).toBe(true);
   });
@@ -118,6 +145,7 @@ describe("habitOnTrackForTodayView", () => {
       currentStreak: 0,
       longestStreak: 1,
       completionCounts: { done: 0, partial: 0, undone: 0 },
+      prefailedToday: false,
     };
     expect(habitOnTrackForTodayView(e)).toBe(false);
   });
@@ -137,6 +165,7 @@ describe("habitOnTrackForTodayView", () => {
       currentStreak: 0,
       longestStreak: null,
       completionCounts: { done: 0, partial: 0, undone: 0 },
+      prefailedToday: false,
     };
     expect(habitOnTrackForTodayView(e)).toBe(true);
   });
@@ -155,6 +184,59 @@ describe("habitShownInMonthAndToday", () => {
   it("is false for archived and hidden", () => {
     expect(habitShownInMonthAndToday("archived")).toBe(false);
     expect(habitShownInMonthAndToday("hidden")).toBe(false);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// prefail (today list only)
+// ---------------------------------------------------------------------------
+
+describe("parsePrefailedDateStr", () => {
+  it("returns null when absent", () => {
+    expect(parsePrefailedDateStr({})).toBe(null);
+  });
+
+  it("accepts ISO date strings", () => {
+    expect(parsePrefailedDateStr({ prefailed: "2026-04-13" })).toBe("2026-04-13");
+  });
+
+  it("normalizes Date values to local ISO", () => {
+    expect(parsePrefailedDateStr({ prefailed: new Date(2026, 3, 13) })).toBe("2026-04-13");
+  });
+});
+
+describe("habitPrefailedForTodayList", () => {
+  it("is true only when prefailed matches today", () => {
+    expect(habitPrefailedForTodayList({ prefailed: "2026-04-13" }, "2026-04-13")).toBe(true);
+    expect(habitPrefailedForTodayList({ prefailed: "2026-04-12" }, "2026-04-13")).toBe(false);
+  });
+});
+
+describe("frontmatterWithoutPrefailedForToday", () => {
+  it("removes prefailed when it matches today", () => {
+    const out = frontmatterWithoutPrefailedForToday({ name: "X", prefailed: "2026-04-13" }, "2026-04-13");
+    expect(out.prefailed).toBeUndefined();
+    expect(out.name).toBe("X");
+  });
+
+  it("leaves frontmatter unchanged when prefailed is another day", () => {
+    const out = frontmatterWithoutPrefailedForToday({ prefailed: "2026-04-12" }, "2026-04-13");
+    expect(out.prefailed).toBe("2026-04-12");
+  });
+});
+
+describe("applyPrefailForToday", () => {
+  it("clears today’s boolean line and sets prefailed", () => {
+    const body = "- [x] 2026-04-13\n";
+    const { body: next, frontmatter } = applyPrefailForToday(body, { name: "IF" }, "2026-04-13", false, DEFAULT_SYMBOLS);
+    expect(frontmatter.prefailed).toBe("2026-04-13");
+    expect(next).not.toContain("2026-04-13");
+  });
+
+  it("records a negative slip and sets prefailed", () => {
+    const { body, frontmatter } = applyPrefailForToday("", { name: "No", type: "negative" }, "2026-04-13", true, DEFAULT_SYMBOLS);
+    expect(frontmatter.prefailed).toBe("2026-04-13");
+    expect(body).toContain("- [x] 2026-04-13");
   });
 });
 
