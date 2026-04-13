@@ -69,6 +69,48 @@ export function resolveDoDate(phrase: string, ref: Date = new Date()): string | 
   return isoLocal(d);
 }
 
+export type ResolveDayViewTargetResult =
+  | { ok: true; iso: string }
+  | { ok: false; error: string };
+
+/**
+ * Resolve an ISO or chrono phrase for `habitxt day` / the day-view TUI “go to date”.
+ * Future calendar days (after `isoLocal(ref)`) are rejected.
+ */
+export function resolveDayViewTarget(
+  phraseJoined: string,
+  ref: Date = new Date(),
+  opts: { emptyMeansToday: boolean },
+): ResolveDayViewTargetResult {
+  const joined = phraseJoined.trim();
+  if (joined === "") {
+    if (opts.emptyMeansToday) return { ok: true, iso: isoLocal(ref) };
+    return {
+      ok: false,
+      error: "Enter a date (YYYY-MM-DD or a phrase like last Monday).",
+    };
+  }
+  const resolved = resolveDoDate(joined, ref);
+  if (!resolved) {
+    return {
+      ok: false,
+      error: `Invalid date: "${joined}". Use YYYY-MM-DD or a phrase like yesterday, last Tuesday.`,
+    };
+  }
+  const max = isoLocal(ref);
+  if (resolved > max) {
+    return { ok: false, error: `That day is in the future (after ${max}).` };
+  }
+  return { ok: true, iso: resolved };
+}
+
+/** Move a local calendar day by `deltaDays` (negative = earlier). `isoDate` must be `YYYY-MM-DD`. */
+export function shiftIsoDateLocal(isoDate: string, deltaDays: number): string {
+  const d = new Date(isoDate + "T00:00:00");
+  d.setDate(d.getDate() + deltaDays);
+  return isoLocal(d);
+}
+
 /** `+N` adds N to the numeric value already logged for `date` (missing or non-numeric → 0). Otherwise absolute integer (`-?\d+`). */
 const RELATIVE_NUMERICAL_ADD_RE = /^\+\d+$/;
 const ABSOLUTE_NUMERICAL_INPUT_RE = /^-?\d+$/;

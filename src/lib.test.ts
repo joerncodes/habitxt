@@ -21,7 +21,9 @@ import {
   markerLevelsForDays,
   negativeSparklineForDays,
   isoLocal,
+  shiftIsoDateLocal,
   resolveDoDate,
+  resolveDayViewTarget,
   resolveNumericalDoMarker,
   parseNumericalStep,
   parseNumericalDoCommandArgs,
@@ -426,6 +428,62 @@ describe("resolveDoDate", () => {
     expect(resolveDoDate("", ref)).toBeNull();
     expect(resolveDoDate("   ", ref)).toBeNull();
     expect(resolveDoDate("not a date whatsoever", ref)).toBeNull();
+  });
+});
+
+describe("shiftIsoDateLocal", () => {
+  it("moves one day forward and backward", () => {
+    expect(shiftIsoDateLocal("2026-04-07", 1)).toBe("2026-04-08");
+    expect(shiftIsoDateLocal("2026-04-07", -1)).toBe("2026-04-06");
+  });
+
+  it("crosses month boundaries", () => {
+    expect(shiftIsoDateLocal("2026-03-31", 1)).toBe("2026-04-01");
+    expect(shiftIsoDateLocal("2026-04-01", -1)).toBe("2026-03-31");
+  });
+});
+
+describe("resolveDayViewTarget", () => {
+  const ref = new Date(2026, 3, 13, 12, 0, 0); // local 2026-04-13
+
+  it("empty phrase with emptyMeansToday returns local today", () => {
+    expect(resolveDayViewTarget("", ref, { emptyMeansToday: true })).toEqual({
+      ok: true,
+      iso: "2026-04-13",
+    });
+    expect(resolveDayViewTarget("  ", ref, { emptyMeansToday: true })).toEqual({
+      ok: true,
+      iso: "2026-04-13",
+    });
+  });
+
+  it("empty phrase without emptyMeansToday is an error", () => {
+    const r = resolveDayViewTarget("", ref, { emptyMeansToday: false });
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.error).toMatch(/Enter a date/);
+  });
+
+  it("resolves ISO and chrono phrases on or before ref day", () => {
+    expect(resolveDayViewTarget("2026-04-01", ref, { emptyMeansToday: false })).toEqual({
+      ok: true,
+      iso: "2026-04-01",
+    });
+    expect(resolveDayViewTarget("yesterday", ref, { emptyMeansToday: false })).toEqual({
+      ok: true,
+      iso: "2026-04-12",
+    });
+  });
+
+  it("rejects unparseable phrases", () => {
+    const r = resolveDayViewTarget("not a date", ref, { emptyMeansToday: false });
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.error).toContain("Invalid date");
+  });
+
+  it("rejects future calendar days", () => {
+    const r = resolveDayViewTarget("2026-04-14", ref, { emptyMeansToday: false });
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.error).toMatch(/future/);
   });
 });
 

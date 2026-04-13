@@ -43,18 +43,18 @@ Mark a habit complete for today (or a specific date):
   habitxt do "No Alcohol"                 # negative habit: records a slip
 
 Running `do` on an **archived** habit automatically unarchives it. **`do` does
-not** clear **hidden** status — hidden habits stay out of `month` and `today`
+not** clear **hidden** status — hidden habits stay out of `month` and the **day** view (`habitxt day`, `today`, `yesterday`)
 until you run `unhide` or edit frontmatter. For **negative** habits, `do`
 records a slip (same file format as a completion); messaging refers to slips
 instead of “done”.
 
 ### fail
 
-Mark today as failed early (same effect as **`f`** in **`habitxt today`**):
+Mark today as failed early (same effect as **`f`** in the **day** view, e.g. **`habitxt day`**):
 
   habitxt fail IF
 
-For **boolean** and **numerical** habits, clears today’s completion line if present. For **negative** habits, records a slip for today. Sets frontmatter **`prefailed`** to today’s local date (**`YYYY-MM-DD`**). In **`habitxt today`**, that row shows a red **`[f]`** and dimmed text; it does not count as on track until **`prefailed`** is cleared (e.g. **`d`** to clear today, or logging a completion again).
+For **boolean** and **numerical** habits, clears today’s completion line if present. For **negative** habits, records a slip for today. Sets frontmatter **`prefailed`** to today’s local date (**`YYYY-MM-DD`**). In the **day** view, that row shows a red **`[f]`** and dimmed text; it does not count as on track until **`prefailed`** is cleared (e.g. **`d`** to clear the day’s mark, or logging a completion again for that day).
 
 ### show
 
@@ -104,40 +104,56 @@ recorded history).
   habitxt streak
   habitxt streak --sort longest
 
-### today
+### day (interactive day view)
 
-Open an interactive full-screen view for marking today's habits:
+Open a full-screen view for one **calendar day** (default: local today). Browse
+with the keyboard, edit completions for that day, and jump to other days.
 
-  habitxt today
+  habitxt day                    # today
+  habitxt day yesterday
+  habitxt day 2026-04-01
+  habitxt day last Monday        # chrono phrases, same rules as `do`
+  habitxt today                  # alias for `habitxt day`
+  habitxt yesterday              # same as `habitxt day yesterday`
+  habitxt 2026-04-01             # bare ISO → same as `habitxt day 2026-04-01`
+
+The CLI rejects **future** dates. Inside the TUI you cannot move past the real
+local “today” with **l** / **→** (midnight rollover updates the cap while the
+UI is open).
 
 Displays all habits that are **open** (not archived or hidden), grouped by
-category, with a live completion counter at the top. Key bindings:
+category, with a progress bar for how many habits are **on track** for the
+**viewed day**. Key bindings:
 
-  ↑ / k         move up
-  ↓ / j         move down
+  ↑ / k         move selection up
+  ↓ / j         move selection down
+  h / ←         previous day
+  l / →         next day (stops at today)
+  g             go to date: type ISO or a phrase (Enter jump, Esc cancel)
   Enter         toggle full completion (done ↔ undone), or slip ↔ clean for negative habits
-  n             note: set or edit today’s note (Enter save, Esc cancel); if today is empty, marks done and adds the note
+  n             note: set or edit the day’s note (Enter save, Esc cancel); if the day is empty, marks done and adds the note
   x             mark fully done, or record a slip (negative)
   /             toggle partial completion (partial ↔ undone); skipped for negative habits
-  f             fail today early (sets `prefailed`; red [f] + dimmed row until local midnight)
-  d             clear today's mark (or clear today's slip for negative habits); also clears `prefailed` when it matches today
+  f             fail early for the viewed day (sets `prefailed`; red [f] + dimmed row)
+  d             clear the day’s mark (or clear that day’s slip for negative habits); clears `prefailed` when it matches that day
   q / Escape    quit
 
-The header counts **on track today**: any completion for boolean habits, **full**
-threshold (green tier) for numerical habits, and **clean** (no slip) rows for
-negative habits. A habit with **`prefailed`** set to today’s date is **not** on track; the UI shows **`[f]`** in red with a dimmed habit name and extra text.
+When the viewed day **is** today, the title reads **Today — …** and the tally
+suffix is **on track today**; for past days the header is the full date and the
+suffix is **on track this day**. A habit with **`prefailed`** set to the
+**viewed** calendar day is **not** on track; the UI shows **`[f]`** in red with
+a dimmed habit name and extra text.
 
-For numerical habits, pressing Enter prompts for a value inline and
-shows the partial and full thresholds as a hint. Backspace edits the
-input; Escape cancels without writing. Press **Enter** again with an
-empty input to add your habit’s **`step`** (frontmatter, default **1**)
-to today’s value — same as `habitxt do <habit>` with no number. **n**
-opens the note prompt only after a value is logged for today (same as
-`do --note`).
+For numerical habits, pressing Enter prompts for a value inline and shows the
+partial and full thresholds as a hint. Backspace edits the input; Escape
+cancels without writing. Press **Enter** again with an empty input to add your
+habit’s **`step`** (frontmatter, default **1**) for **that day** — same as
+`habitxt do <habit>` with no number. **n** opens the note prompt only after a
+value is logged for that day (same as `do --note`).
 
-On boolean or negative habits, **n** can add a note even when today is
-still empty: saving applies done (or a slip for negative) with your note.
-An empty note with a completion already saved clears the note.
+On boolean or negative habits, **n** can add a note even when that day is
+still empty: saving applies done (or a slip for negative) with your note. An
+empty note with a completion already saved clears the note.
 
 ### edit
 
@@ -149,7 +165,7 @@ Uses $EDITOR, falling back to $VISUAL, then vi.
 
 ### archive
 
-Archive a habit so it no longer appears in `month` or `today`:
+Archive a habit so it no longer appears in `month` or the day view:
 
   habitxt archive Meditate
 
@@ -158,13 +174,13 @@ Archived habits are skipped in those views. Completing an archived habit with
 
 ### hide / unhide
 
-Hide a habit from `month` and `today` without deleting it — it remains in your
+Hide a habit from `month` and the day view without deleting it — it remains in your
 habits folder and you can still log completions:
 
   habitxt hide Meditate
   habitxt unhide Meditate
 
-Hidden habits are skipped in `month` and `today`. Unlike archived habits,
+Hidden habits are skipped in `month` and the day view. Unlike archived habits,
 completing a hidden habit with **`do` does not** bring it back into those
 views; use `unhide` (or edit `status` in frontmatter) when you want it listed
 again.
@@ -245,7 +261,7 @@ Boolean habits support two completion levels:
   [x]  fully completed      (counts toward streaks)
   [/]  partially completed  (counts toward streaks)
 
-Use `habitxt do <habit> --partial` or the `/` key in `habitxt today`
+Use `habitxt do <habit> --partial` or the `/` key in **`habitxt day`**
 to record a partial completion. Both completion levels count toward streaks.
 
 Optional **completion notes** are free text after the date on a line:
@@ -253,7 +269,7 @@ Optional **completion notes** are free text after the date on a line:
   - [x] 2026-04-08 morning session, felt focused
 
 Add them with `habitxt do <habit> --note "..."` (or `--note` on numerical /
-negative habits). Interactive `today` keeps an existing note when you change
+negative habits). The day view keeps an existing note when you change
 the marker for the same day.
 
 ### Frontmatter Fields
@@ -267,10 +283,10 @@ the marker for the same day.
   type         "numerical" for numeric habits, "negative" for avoid-habits (slips)
   partial      Numerical threshold for partial credit (yellow)
   full         Numerical threshold for full credit (green)
-  step         Optional positive integer: default increment when logging without a value (`do`, `today`, API)
+  step         Optional positive integer: default increment when logging without a value (`do`, day view, API)
   min          Optional chart y-axis floor for numerical habits (`habitxt show` ASCII chart)
   max          Optional chart y-axis ceiling for numerical habits
-  prefailed    Optional ISO date (`YYYY-MM-DD`): when it matches today, `habitxt today` shows [f] (red) and a dimmed row; set by `fail` / `f` (cleared when you clear today or log a completion for today)
+  prefailed    Optional ISO date (`YYYY-MM-DD`): when it matches the calendar day shown in the row, the day view shows [f] (red) and a dimmed row; set by `fail` / `f` (cleared when you clear that day or log a completion for that day)
 
 Example:
 
@@ -319,7 +335,7 @@ axis derived only from the data.
 **current** streak is consecutive clean days since the most recent slip on or
 before today (**Never slipped** if there is none). The file uses the same
 completion list as boolean habits; commands treat lines as slips and empty
-days as clean (`show`, `month`, `today`, `do`).
+days as clean (`show`, `month`, `day`, `do`).
 
 Example:
 

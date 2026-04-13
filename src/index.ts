@@ -12,7 +12,7 @@ import { listCommand } from "./commands/list.js";
 import { archiveCommand } from "./commands/archive.js";
 import { hideCommand } from "./commands/hide.js";
 import { editCommand } from "./commands/edit.js";
-import { todayCommand } from "./commands/today.js";
+import { dayCommand } from "./commands/day.js";
 import { failCommand } from "./commands/fail.js";
 import { streakCommand } from "./commands/streak.js";
 import { yearCommand } from "./commands/year.js";
@@ -31,9 +31,40 @@ listCommand(program);
 archiveCommand(program);
 hideCommand(program);
 editCommand(program);
-todayCommand(program);
+dayCommand(program);
 failCommand(program);
 streakCommand(program);
 yearCommand(program);
 
-program.parse();
+/** Bare `habitxt YYYY-MM-DD` → `habitxt day YYYY-MM-DD` (Commander has no dynamic command names). */
+const ISO_DATE_ARG = /^\d{4}-\d{2}-\d{2}$/;
+const HABITXT_SUBCOMMANDS = new Set([
+  "do",
+  "show",
+  "month",
+  "create",
+  "completions",
+  "_list",
+  "archive",
+  "hide",
+  "unhide",
+  "edit",
+  "day",
+  "today",
+  "yesterday",
+  "fail",
+  "streak",
+  "year",
+]);
+const argv = process.argv;
+if (
+  argv.length >= 3 &&
+  argv[2] !== undefined &&
+  !argv[2].startsWith("-") &&
+  ISO_DATE_ARG.test(argv[2]) &&
+  !HABITXT_SUBCOMMANDS.has(argv[2])
+) {
+  argv.splice(2, 0, "day");
+}
+
+program.parse(argv);

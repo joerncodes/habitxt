@@ -25,7 +25,7 @@ node run.js <command>  # run the CLI locally (tsx shim, no build step needed)
 - `year.ts` — yearly aggregate heatmap (`buildYearDayCompletionCounts`, `ratioToHeatmapStep`, `HEATMAP_RGB`); week columns from `weekStart` in `habitxt.toml` (`sun`|`mon`, default `sun`); optional `--category` / `-c` (`habitMatchesCategoryFilter`)
 - `streak.ts` — leaderboard of open habits (`loadTodayHabits`: `currentStreak` + `longestStreak`); `--sort current|longest`; table output via `cli-table3`; never-slipped negative habits sort first for either key
 - `list.ts` — hidden `_list` only (shell completion enumerates habit names)
-- `today.ts` — interactive TUI; **n** opens note entry (Enter save, Esc cancel)
+- `day.ts` — interactive day-view TUI (`day` / `today` / `yesterday` / bare ISO argv); **h**/**l** or arrows change day; **g** go to date; **n** note (Enter save, Esc cancel)
 
 **Pure logic** lives in `src/lib.ts` — all functions here are side-effect-free and fully tested in `src/lib.test.ts`. Commands handle only I/O (file read/write, console output).
 

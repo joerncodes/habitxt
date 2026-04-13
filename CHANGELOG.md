@@ -2,6 +2,13 @@
 
 All notable changes to this project are documented in this file.
 
+## [1.7.0] — 2026-04-13
+
+### Added
+
+- **`habitxt day`** — interactive **day** view for any calendar day on or before local today (chrono or ISO, same rules as `do`). **`habitxt today`** is an alias; **`habitxt yesterday`** opens yesterday; a bare **`habitxt YYYY-MM-DD`** is rewritten to **`day`**.
+- **Day-view TUI:** **h** / **←** and **l** / **→** move by one calendar day (forward stops at today); **`g`** prompts for a date phrase to jump to. Library helpers **`shiftIsoDateLocal`** and **`resolveDayViewTarget`** in `lib.ts` (tested).
+
 ## [1.6.0] — 2026-04-13
 
 ### Added
